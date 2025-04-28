@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -20,21 +21,21 @@ type UserRole = 'user' | 'venueManager';
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'Name must be at least 3 characters' }),
-  email: z.string()
-    .email({ message: 'Please enter a valid email address' })
-    .refine(email => email.endsWith('stud.noroff.no'), {
-      message: 'Email must be a Noroff email (stud.noroff.no)'
-    }),
+  email: z.string().email({ message: 'Please enter a valid email address' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
-  avatar: z.string().url({ message: 'Avatar must be a valid URL' }).optional().or(z.literal('')),
+  bio: z.string().optional().or(z.literal('')),
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+
 
 export default function RegisterForm() {
   const [role, setRole] = useState<UserRole>('user');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -42,7 +43,8 @@ export default function RegisterForm() {
       name: '',
       email: '',
       password: '',
-      avatar: '',
+      bio: '',
+      
     },
   });
   
@@ -53,27 +55,56 @@ export default function RegisterForm() {
     setIsLoading(true);
     
     try {
+      
+      const requestBody = { 
+        name: values.name,
+        email: values.email, 
+        password: values.password
+      } as any; 
+      
+    
+      if (role === 'venueManager') {
+        requestBody.venueManager = true;
+      }
+      
+  
+      if (values.bio && values.bio.trim() !== '') {
+        requestBody.bio = values.bio.trim();
+      }
+
       const response = await fetch('https://v2.api.noroff.dev/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name: values.name,
-          email: values.email, 
-          password: values.password,
-          avatar: values.avatar ? { url: values.avatar, alt: `Avatar for ${values.name}` } : undefined
-        }),
+        body: JSON.stringify(requestBody),
       });
+      
+      console.log('Request payload:', JSON.stringify(requestBody, null, 2));
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Registration failed');
+        console.error('Registration error:', errorData);
+        console.error('Status code:', response.status);
+        console.error('Full request body:', JSON.stringify(requestBody, null, 2));
+        
+        let errorMessage = 'Registration failed';
+        
+        if (errorData.errors && errorData.errors.length > 0) {
+         
+          console.error('Detailed errors:', errorData.errors);
+          errorMessage = errorData.errors.map((err: any) => 
+            typeof err === 'object' ? (err.message || JSON.stringify(err)) : String(err)
+          ).join(', ');
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        
+        throw new Error(errorMessage);
       }
       
       const { data } = await response.json();
       
       console.log(`Successfully registered as ${data.name}`);
       
-      // Redirect to login page
       router.push('/login');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
@@ -85,11 +116,18 @@ export default function RegisterForm() {
 
   return (
     <div className="w-full mx-auto bg-white p-8 sm:p-10 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold text-center text-custom-blue mb-8">SIGN UP</h2>
-      
+      <div className="text-center mb-4">
+        <h1 className="text-2xl font-bold text-custom-blue">Create an account</h1>
+        <p className="text-custom-gray">Sign up to get started with Holidaze</p>
+      </div>
+
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
-          <span className="block sm:inline">{error}</span>
+        <div className="mb-4 p-3 bg-red-50 text-red-500 rounded-md border border-red-200">
+          <p className="font-semibold mb-1">Registration Error:</p>
+          <p>{error}</p>
+          {error.includes('URL') && (
+            <p className="mt-2 text-xs">Note: We've removed the avatar field to avoid URL validation issues. Please try again without any avatar URL.</p>
+          )}
         </div>
       )}
       
@@ -128,9 +166,9 @@ export default function RegisterForm() {
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Username</FormLabel>
+                <FormLabel>Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="username" {...field} />
+                  <Input placeholder="Your name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -144,7 +182,7 @@ export default function RegisterForm() {
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input type="email" placeholder="mail@stud.noroff.no" {...field} />
+                  <Input type="email" placeholder="your.email@stud.noroff.no" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -158,7 +196,7 @@ export default function RegisterForm() {
               <FormItem>
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="min 08 characters" {...field} />
+                  <Input type="password" placeholder="••••••••" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -167,17 +205,31 @@ export default function RegisterForm() {
 
           <FormField
             control={form.control}
-            name="avatar"
+            name="bio"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Avatar URL (optional)</FormLabel>
+                <FormLabel>Bio (Optional)</FormLabel>
                 <FormControl>
-                  <Input placeholder="https://example.com/avatar.jpg" {...field} />
+                  <Input placeholder="Tell us about yourself" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+        
+
+          <div className="flex items-center space-x-2 pt-2">
+            <label className="text-sm font-medium flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={role === 'venueManager'}
+                onChange={() => setRole(role === 'venueManager' ? 'user' : 'venueManager')}
+                className="rounded border-gray-300 text-custom-blue focus:ring-custom-blue mr-2 h-4 w-4"
+              />
+              Register as a Venue Manager
+            </label>
+          </div>
 
           <div>
             <button

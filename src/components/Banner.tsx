@@ -20,8 +20,8 @@ const Banner = () => {
       </div>
 
       
-      <div className="absolute top-4 right-4 md:top-8 md:right-8 lg:top-10 lg:right-16 max-w-xs">
-        <div className="bg-teal-500/80 rounded-tl-2xl rounded-br-2xl p-4 text-center">
+      <div className="absolute top-8 right-0 max-w-xs">
+        <div className="bg-teal-500/80 rounded-tl-3xl rounded-bl-3xl p-4 text-center w-80">
           <p className="text-sm md:text-base font-medium text-white mb-2">Escape the ordinary.</p>
           <button
             onClick={handleExploreClick}

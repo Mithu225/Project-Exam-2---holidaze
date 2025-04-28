@@ -11,7 +11,7 @@ const ProductList = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch('https://v2.api.noroff.dev/online-shop');
+        const response = await fetch('https://v2.api.noroff.dev/holidaze/bookings');
         const data = await response.json();
         setProducts(data.data);
         setLoading(false);

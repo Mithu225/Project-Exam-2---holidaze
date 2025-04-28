@@ -1,8 +1,8 @@
 "use client";
-import { ShoppingCart } from "lucide-react";
-import Link from "next/link";
-
+import { ShoppingCart, User } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 import SearchBar from "./SearchBar";
 import { useCart } from "@/context/CartContext";
 
@@ -25,8 +25,9 @@ export default function Header() {
       <nav>
           <ul className="flex flex-col sm:flex-row font-bold gap-4">
             <li>
-              <Link href="/login" className="hover:text-custom-blue  transition">
-              Account
+              <Link href="/login" className="hover:text-custom-blue transition flex items-center gap-1">
+                <User className="w-5 h-5 stroke-[2.5px]" />
+                <span>Account</span>
               </Link>
             </li>
             

@@ -76,7 +76,7 @@ export default function LoginForm() {
       
       
       if (role === 'venueManager') {
-        router.push('/dashboard/venues');
+        router.push('/holidaze/venues');
       } else {
         router.push('/profile');
       }
