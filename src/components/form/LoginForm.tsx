@@ -67,6 +67,7 @@ export default function LoginForm() {
       localStorage.setItem('user', JSON.stringify({
         name: data.name,
         email: values.email,
+        bio: data.bio || '',  // Save bio from the API response
         avatar: data.avatar,
         banner: data.banner,
         role: role 

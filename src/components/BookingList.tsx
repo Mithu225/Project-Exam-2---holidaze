@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import BookingCard from './BookingCard';
 import { Booking } from '@/types/booking';
+import Link from 'next/link';
 
 const BookingList = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -53,7 +54,7 @@ const BookingList = () => {
     <div className="text-center py-10">
       <div className="text-red-500 font-medium mb-2">{error}</div>
       {error === 'Authentication required' && (
-        <p className="text-gray-600">Please <a href="/login" className="text-custom-blue hover:underline">log in</a> to view your bookings.</p>
+        <p className="text-gray-600">Please <Link href="/login" className="text-custom-blue hover:underline">log in</Link> to view your bookings.</p>
       )}
     </div>
   );
@@ -63,9 +64,9 @@ const BookingList = () => {
       <div className="text-center py-10">
         <h2 className="text-2xl font-semibold text-gray-700 mb-4">No Bookings Yet</h2>
         <p className="text-gray-600 mb-6">You don't have any bookings yet.</p>
-        <a href="/venues" className="bg-custom-blue text-white px-6 py-2 rounded-md hover:bg-blue-800 transition-colors">
+        <Link href="/venues" className="bg-custom-blue text-white px-6 py-2 rounded-md hover:bg-blue-800 transition-colors inline-block">
           Explore Venues
-        </a>
+        </Link>
       </div>
     );
   }

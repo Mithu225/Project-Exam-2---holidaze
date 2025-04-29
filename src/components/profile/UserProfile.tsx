@@ -162,9 +162,12 @@ export default function UserProfile() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-custom-blue">{userData.name}</h1>
-          {userData.bio && (
-            <p className="text-gray-600 mt-1 mb-2 italic">&ldquo;{userData.bio}&rdquo;</p>
-          )}
+          <p className="text-gray-600 mt-1 mb-2 italic">
+            {userData.bio ? 
+              <>&ldquo;{userData.bio}&rdquo;</> : 
+              <span className="text-gray-400">Your Bio shows here</span>
+            }
+          </p>
           <div className="flex items-center text-custom-gray mt-1">
             <Mail className="w-4 h-4 mr-1" />
             <span>{userData.email}</span>
