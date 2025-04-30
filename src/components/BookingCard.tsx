@@ -75,7 +75,7 @@ const BookingCard = ({ booking, onDelete }: BookingCardProps) => {
           </div>
         </div>
         
-        <div className="mt-4 space-y-2 border-t border-gray-100 pt-3">
+        <div className="mt-auto pt-4 space-y-4">
           <div className="flex items-center justify-between bg-gray-50 p-2 rounded-md">
             <div className="flex items-center">
               <CreditCard className="w-4 h-4 text-custom-blue mr-2" />
@@ -83,12 +83,7 @@ const BookingCard = ({ booking, onDelete }: BookingCardProps) => {
             </div>
             <span className="text-lg font-bold text-custom-blue">{formatPrice(totalPrice)}</span>
           </div>
-          <div className="flex justify-end">
-           
-          </div>
-        </div>
-        
-        <div className="mt-auto pt-4 space-y-2">
+
           <div className="grid grid-cols-2 gap-2">
             <Link href="/#venues">
               <button className="w-full flex items-center justify-center bg-custom-blue text-white py-2 px-3 rounded-md hover:bg-blue-700 transition-colors">

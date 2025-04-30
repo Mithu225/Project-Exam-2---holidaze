@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { User, Mail, Calendar, LogOut, Edit } from 'lucide-react';
+import { User, Mail, Calendar, Edit } from 'lucide-react';
 import { useRouter } from 'next/router';
 import BookingList from '../BookingList';
 
@@ -57,11 +57,7 @@ export default function GuestProfile() {
     }
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('user'); // Storage key remains 'user' for compatibility
-    localStorage.removeItem('accessToken');
-    router.push('/login');
-  };
+  // Logout functionality moved to Header component
 
   const handleEditFormOpen = () => {
   
@@ -190,13 +186,6 @@ export default function GuestProfile() {
           >
             <Edit className="w-4 h-4 mr-2" />
             Edit Profile
-          </button>
-          <button 
-            onClick={handleLogout}
-            className="flex items-center px-4 py-2 bg-white hover:bg-gray-200 border border-custom-blue rounded-md text-custom-blue transition-colors"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Log out
           </button>
         </div>
       </div>
