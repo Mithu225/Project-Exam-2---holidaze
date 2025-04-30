@@ -1,15 +1,27 @@
 "use client";
-import { User } from "lucide-react";
+import { User, LogOut } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import SearchBar from "./SearchBar";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 
 export default function Header() {
   const [userName, setUserName] = useState<string>("");
   const [userRole, setUserRole] = useState<string>("");
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const router = useRouter();
   
+  // Function to handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
+    setIsLoggedIn(false);
+    setUserName("");
+    setUserRole("");
+    router.push('/login');
+  };
+
   // Function to check login status and update state
   const checkLoginStatus = () => {
     const storedUser = localStorage.getItem('user');
@@ -55,18 +67,21 @@ export default function Header() {
     <header className="bg-white text-custom-blue shadow-md">
       <div className="container mx-auto flex flex-col items-center justify-between gap-4 p-4 sm:flex-row">
         <div className="p-0">
-          <Image
-            src="/asset/holidaze-header-logo.png"
-            alt="Holidaze Logo"
-            height={170}
-            width={224}
-          />
+          <Link href="/" aria-label="Go to home page">
+            <Image
+              src="/asset/holidaze-header-logo.png"
+              alt="Holidaze Logo"
+              height={170}
+              width={224}
+              className="cursor-pointer"
+            />
+          </Link>
         </div>
 
        
       <SearchBar />
       <nav>
-          <ul className="flex flex-col sm:flex-row font-bold gap-4">
+          <ul className="flex flex-col sm:flex-row font-bold gap-4 items-center">
             <li>
               <Link 
                 href={isLoggedIn ? "/profile" : "/login"} 
@@ -86,7 +101,17 @@ export default function Header() {
               </Link>
             </li>
             
-           
+            {isLoggedIn && (
+              <li>
+                <button 
+                  onClick={handleLogout}
+                  className="flex items-center gap-1 bg-white border border-custom-blue text-custom-blue rounded-md px-3 py-1 hover:bg-gray-50 transition-colors text-sm"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Log Out</span>
+                </button>
+              </li>
+            )}
           </ul>
         </nav>
    

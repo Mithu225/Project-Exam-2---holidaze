@@ -32,6 +32,7 @@ export interface Booking {
   dateTo: string;
   guests: number;
   created: string;
-  updated: string;
+  updated?: string;
   venue: Venue;
+  userId?: string; // User identifier (email) for filtering bookings by user
 }

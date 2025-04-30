@@ -90,7 +90,7 @@ export default function GuestProfile() {
     
     if (!guestData) return;
     
-    // Update guest data
+    
     const updatedGuestData = {
       ...guestData,
       bio: formData.bio,

@@ -50,14 +50,6 @@ export default function SearchResults() {
       (venue.location?.country?.toLowerCase() || "").includes(searchLower) ||
       (venue.description?.toLowerCase() || "").includes(searchLower);
   });
-  
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchTerm)}`);
-    }
-  };
 
   return (
     <div className="container mx-auto px-4 py-8">
