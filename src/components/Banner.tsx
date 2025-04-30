@@ -2,7 +2,7 @@
 import Image from "next/image";
 const Banner = () => {
   const handleExploreClick = () => {
-    const element = document.getElementById('products');
+    const element = document.getElementById('venues');
     element?.scrollIntoView({ behavior: 'smooth' });
   };
 

@@ -5,10 +5,11 @@ import { User, Mail, Calendar, LogOut, Edit } from 'lucide-react';
 import { useRouter } from 'next/router';
 import BookingList from '../BookingList';
 
-interface UserData {
+interface GuestData {
   name: string;
   email: string;
   bio?: string;
+  role?: string;
   avatar?: {
     url: string;
     alt: string;
@@ -19,8 +20,8 @@ interface UserData {
   };
 }
 
-export default function UserProfile() {
-  const [userData, setUserData] = useState<UserData | null>(null);
+export default function GuestProfile() {
+  const [guestData, setGuestData] = useState<GuestData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditForm, setShowEditForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -32,32 +33,32 @@ export default function UserProfile() {
 
   useEffect(() => {
 
-    const storedUser = localStorage.getItem('user');
+    const storedGuest = localStorage.getItem('user'); // Storage key remains 'user' for compatibility
     const token = localStorage.getItem('accessToken');
     
-    if (!storedUser || !token) {
+    if (!storedGuest || !token) {
       router.push('/login');
       return;
     }
 
     try {
-      const user = JSON.parse(storedUser);
-      setUserData(user);
+      const guest = JSON.parse(storedGuest);
+      setGuestData(guest);
    
       setFormData({
-        bio: user.bio || '',
-        avatarUrl: user.avatar?.url || '',
-        bannerUrl: user.banner?.url || ''
+        bio: guest.bio || '',
+        avatarUrl: guest.avatar?.url || '',
+        bannerUrl: guest.banner?.url || ''
       });
     } catch (error) {
-      console.error('Failed to parse user data:', error);
+      console.error('Failed to parse guest data:', error);
     } finally {
       setLoading(false);
     }
   }, [router]);
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
+    localStorage.removeItem('user'); // Storage key remains 'user' for compatibility
     localStorage.removeItem('accessToken');
     router.push('/login');
   };
@@ -65,7 +66,7 @@ export default function UserProfile() {
   const handleEditFormOpen = () => {
   
     setFormData({
-      bio: userData?.bio || '',
+      bio: guestData?.bio || '',
       avatarUrl: '',
       bannerUrl: ''
     });
@@ -87,26 +88,26 @@ export default function UserProfile() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!userData) return;
+    if (!guestData) return;
     
-    // Update user data
-    const updatedUserData = {
-      ...userData,
+    // Update guest data
+    const updatedGuestData = {
+      ...guestData,
       bio: formData.bio,
   
       avatar: formData.avatarUrl ? {
         url: formData.avatarUrl,
-        alt: 'User avatar'
-      } : userData.avatar,
+        alt: 'Guest avatar'
+      } : guestData.avatar,
       banner: formData.bannerUrl ? {
         url: formData.bannerUrl,
-        alt: 'User banner'
-      } : userData.banner
+        alt: 'Guest banner'
+      } : guestData.banner
     };
     
    
-    localStorage.setItem('user', JSON.stringify(updatedUserData));
-    setUserData(updatedUserData);
+    localStorage.setItem('user', JSON.stringify(updatedGuestData));
+    setGuestData(updatedGuestData);
     setShowEditForm(false);
   };
 
@@ -118,10 +119,10 @@ export default function UserProfile() {
     );
   }
 
-  if (!userData) {
+  if (!guestData) {
     return (
       <div className="text-center py-10">
-        <p className="text-red-500">Please log in to view your profile.</p>
+        <p className="text-red-500">Please log in to view your guest profile.</p>
       </div>
     );
   }
@@ -130,10 +131,10 @@ export default function UserProfile() {
     <div className="max-w-4xl mx-auto px-4 py-8">
     
       <div className="relative w-full h-48 mb-16 rounded-lg  bg-white">
-        {userData.banner ? (
+        {guestData.banner ? (
           <Image 
-            src={userData.banner.url} 
-            alt={userData.banner.alt || 'Profile banner'} 
+            src={guestData.banner.url} 
+            alt={guestData.banner.alt || 'Profile banner'} 
             fill
             className="object-cover rounded-2xl"
           />
@@ -143,10 +144,10 @@ export default function UserProfile() {
         
      
         <div className="absolute -bottom-12 left-6 w-24 h-24">
-          {userData.avatar ? (
+          {guestData.avatar ? (
             <Image 
-              src={userData.avatar.url}
-              alt={userData.avatar.alt || 'Avatar'}
+              src={guestData.avatar.url}
+              alt={guestData.avatar.alt || 'Avatar'}
               fill
               className="object-cover rounded-full"
             />
@@ -161,20 +162,25 @@ export default function UserProfile() {
    
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-custom-blue">{userData.name}</h1>
-          <p className="text-gray-600 mt-1 mb-2 italic">
-            {userData.bio ? 
-              <>&ldquo;{userData.bio}&rdquo;</> : 
+          <h1 className="text-2xl font-bold text-custom-blue">{guestData.name}</h1>
+          <div className="text-gray-600 mt-1 mb-3 max-w-xs flex">
+            {guestData.bio ? (
+              <>
+                <span className="italic flex-none">&ldquo;</span>
+                <span className="italic truncate">{guestData.bio}</span>
+                <span className="italic flex-none">&rdquo;</span>
+              </>
+            ) : (
               <span className="text-gray-400">Your Bio shows here</span>
-            }
-          </p>
+            )}
+          </div>
           <div className="flex items-center text-custom-gray mt-1">
             <Mail className="w-4 h-4 mr-1" />
-            <span>{userData.email}</span>
+            <span>{guestData.email}</span>
           </div>
           <div className="flex items-center text-custom-gray mt-1">
             <Calendar className="w-4 h-4 mr-1" />
-            <span>Member since April 2025</span>
+            <span>Member since April 2025 as a <span className="capitalize">{guestData.role || 'Guest'}</span></span>
           </div>
         </div>
         <div className="flex space-x-2 mt-4 md:mt-0">

@@ -14,7 +14,7 @@ export default function VenueManagementPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user is logged in
+ 
     const storedUser = localStorage.getItem('user');
     const token = localStorage.getItem('accessToken');
     
@@ -25,14 +25,13 @@ export default function VenueManagementPage() {
 
     try {
       const user = JSON.parse(storedUser);
-      
-      // Check if user is a venue manager
+    
       if (user.role !== 'venueManager') {
         router.push('/profile');
         return;
       }
       
-      // Set user data and trigger venue fetching
+ 
       fetchMyVenues(user.name, token);
     } catch (error) {
       console.error('Failed to parse user data:', error);
@@ -123,7 +122,7 @@ export default function VenueManagementPage() {
         throw new Error('Failed to delete venue');
       }
       
-      // Refresh venues list
+    
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       if (user.name) {
         fetchMyVenues(user.name, token);
@@ -151,7 +150,7 @@ export default function VenueManagementPage() {
           </Link>
         </div>
 
-        {/* Search and Filter */}
+    
         <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-grow">

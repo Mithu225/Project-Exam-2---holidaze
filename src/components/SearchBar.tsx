@@ -9,49 +9,63 @@ export default function SearchBar() {
   const [query, setQuery] = useState("");
   const router = useRouter();
   
-  interface Product {
+  interface Venue {
     id: string;
-    title: string;
+    name: string;
     description: string;
     price: number;
-    discountedPrice: number;
-    image: {
+    location: {
+      city: string;
+      country: string;
+    };
+    media: {
       url: string;
       alt: string;
-    };
+    }[];
+    rating: number;
   }
 
-  const [products, setProducts] = useState<Product[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchVenues = async () => {
       try {
-        const response = await fetch("https://v2.api.noroff.dev/online-shop");
+        const response = await fetch("https://v2.api.noroff.dev/holidaze/venues");
         const result = await response.json();
         if (result?.data) {
-          setProducts(result.data);
+          setVenues(result.data);
         }
       } catch (error) {
-        console.error("Error fetching products:", error);
+        console.error("Error fetching venues:", error);
       }
     };
 
-    fetchProducts();
+    fetchVenues();
   }, []);
 
-  const filteredProducts = products.filter((product) =>
-    product.title.toLowerCase().includes(query.toLowerCase())
-  );
+  const filteredVenues = venues.filter((venue) => {
+    const searchTerm = query.toLowerCase();
+    return (
+      // Check name
+      (venue.name?.toLowerCase() || '').includes(searchTerm) ||
+      // Check city if location exists
+      (venue.location?.city?.toLowerCase() || '').includes(searchTerm) ||
+      // Check country if location exists
+      (venue.location?.country?.toLowerCase() || '').includes(searchTerm)
+    );
+  });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      // Navigate to search results page with the query parameter
+      router.push(`/search?q=${encodeURIComponent(query)}`);
       setQuery("");
     }
   };
 
-  const handleProductClick = (productId: string) => {
-    router.push(`/product/${productId}`);
+  const handleVenueClick = (venueId: string) => {
+    router.push(`/venue/${venueId}`);
     setQuery(""); 
   };
 
@@ -61,7 +75,7 @@ export default function SearchBar() {
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search for products..."
+        placeholder="Search for venues, cities..."
         className="w-full pl-10 pr-3 py-2 border border-custom-orange rounded-md bg-transparent text-custom-blue placeholder:text-custom-blue "
       />
       <Search
@@ -70,19 +84,24 @@ export default function SearchBar() {
       />
 
       {query && (
-        <div className="absolute top-full mt-2 w-full bg-custom-grey text-custom-blue rounded-md shadow-lg p-2 z-50">
-          {filteredProducts.length > 0 ? (
-            filteredProducts.map((product) => (
+        <div className="absolute top-full mt-2 w-full bg-white text-custom-blue rounded-md shadow-lg p-2 z-50">
+          {filteredVenues.length > 0 ? (
+            filteredVenues.map((venue) => (
               <div
-                key={product.id}
-                onClick={() => handleProductClick(product.id)}
-                className="p-2 border-b border-white hover:bg-white cursor-pointer"
+                key={venue.id}
+                onClick={() => handleVenueClick(venue.id)}
+                className="p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
               >
-                {product.title}
+                <div className="font-medium">{venue.name || 'Unnamed Venue'}</div>
+                <div className="text-sm text-gray-500">
+                  {venue.location?.city ? venue.location.city : ''}
+                  {venue.location?.city && venue.location?.country ? ', ' : ''}
+                  {venue.location?.country || ''}
+                </div>
               </div>
             ))
           ) : (
-            <div className="p-2">No products found</div>
+            <div className="p-2">No venues found</div>
           )}
         </div>
       )}

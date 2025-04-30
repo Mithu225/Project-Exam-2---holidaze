@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 
-type UserRole = 'user' | 'venueManager';
+type UserRole = 'Guest' | 'venueManager';
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'Name must be at least 3 characters' }),
@@ -31,7 +31,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 
 export default function RegisterForm() {
-  const [role, setRole] = useState<UserRole>('user');
+  const [role, setRole] = useState<UserRole>('Guest');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -141,9 +141,9 @@ export default function RegisterForm() {
               <label className="flex items-center">
                 <input
                   type="radio"
-                  value="user"
-                  checked={role === 'user'}
-                  onChange={() => setRole('user')}
+                  value="Guest"
+                  checked={role === 'Guest'}
+                  onChange={() => setRole('Guest')}
                   className="h-4 w-4 text-custom-blue focus:ring-custom-blue"
                 />
                 <span className="ml-2 text-sm text-gray-700">Traveler</span>
@@ -224,7 +224,7 @@ export default function RegisterForm() {
               <input
                 type="checkbox"
                 checked={role === 'venueManager'}
-                onChange={() => setRole(role === 'venueManager' ? 'user' : 'venueManager')}
+                onChange={() => setRole(role === 'venueManager' ? 'Guest' : 'venueManager')}
                 className="rounded border-gray-300 text-custom-blue focus:ring-custom-blue mr-2 h-4 w-4"
               />
               Register as a Venue Manager

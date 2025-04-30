@@ -50,21 +50,35 @@ const BookingList = () => {
     </div>
   );
   
-  if (error) return (
-    <div className="text-center py-10">
-      <div className="text-red-500 font-medium mb-2">{error}</div>
-      {error === 'Authentication required' && (
-        <p className="text-gray-600">Please <Link href="/login" className="text-custom-blue hover:underline">log in</Link> to view your bookings.</p>
-      )}
-    </div>
-  );
+  
+  if (error) {
+    
+    if (error === 'Authentication required') {
+      return (
+        <div className="text-center py-10">
+          <p className="text-gray-600">Please <Link href="/login" className="text-custom-blue hover:underline">log in</Link> to view your bookings.</p>
+        </div>
+      );
+    }
+    
+   
+    return (
+      <div className="text-center py-10">
+       
+        <h2 className="text-2xl font-semibold text-gray-600 mb-6">You don't have any bookings yet.</h2>
+        <Link href="/" className="bg-custom-blue text-white px-6 py-2 rounded-md hover:bg-blue-800 transition-colors inline-block">
+          Explore Venues
+        </Link>
+      </div>
+    );
+  }
 
   if (bookings.length === 0) {
     return (
       <div className="text-center py-10">
         <h2 className="text-2xl font-semibold text-gray-700 mb-4">No Bookings Yet</h2>
         <p className="text-gray-600 mb-6">You don't have any bookings yet.</p>
-        <Link href="/venues" className="bg-custom-blue text-white px-6 py-2 rounded-md hover:bg-blue-800 transition-colors inline-block">
+        <Link href="/" className="bg-custom-blue text-white px-6 py-2 rounded-md hover:bg-blue-800 transition-colors inline-block">
           Explore Venues
         </Link>
       </div>

@@ -1,29 +1,29 @@
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import UserProfile from '@/components/profile/UserProfile';
+import GuestProfile from '@/components/profile/GuestProfile';
 import VenueManagerProfile from '@/components/profile/VenueManagerProfile';
 
 export default function ProfilePage() {
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [guestRole, setGuestRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user is logged in
-    const storedUser = localStorage.getItem('user');
+    // Check if guest is logged in
+    const storedGuest = localStorage.getItem('user'); // Note: storage key remains 'user' for compatibility
     const token = localStorage.getItem('accessToken');
     
-    if (!storedUser || !token) {
+    if (!storedGuest || !token) {
       router.push('/login');
       return;
     }
 
     try {
-      const user = JSON.parse(storedUser);
-      setUserRole(user.role || 'user');
+      const guest = JSON.parse(storedGuest);
+      setGuestRole(guest.role || 'Guest');
     } catch (error) {
-      console.error('Failed to parse user data:', error);
+      console.error('Failed to parse guest data:', error);
       router.push('/login');
     } finally {
       setLoading(false);
@@ -45,10 +45,10 @@ export default function ProfilePage() {
         <meta name="description" content="View and manage your Holidaze profile" />
       </Head>
       
-      {userRole === 'venueManager' ? (
+      {guestRole === 'venueManager' ? (
         <VenueManagerProfile />
       ) : (
-        <UserProfile />
+        <GuestProfile />
       )}
     </>
   );

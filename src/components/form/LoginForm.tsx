@@ -16,7 +16,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 
-type UserRole = 'user' | 'venueManager';
+type UserRole = 'Guest' | 'venueManager';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address' }),
@@ -26,7 +26,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export default function LoginForm() {
-  const [role, setRole] = useState<UserRole>('user');
+  const [role, setRole] = useState<UserRole>('Guest');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -75,6 +75,9 @@ export default function LoginForm() {
       
       console.log(`Successfully logged in as ${data.name}`);
       
+      // Dispatch a custom event to notify other components (like Header) of login state change
+      const loginEvent = new Event('loginStateChanged');
+      document.dispatchEvent(loginEvent);
       
       if (role === 'venueManager') {
         router.push('/holidaze/venues');
@@ -109,9 +112,9 @@ export default function LoginForm() {
               <label className="flex items-center">
                 <input
                   type="radio"
-                  value="user"
-                  checked={role === 'user'}
-                  onChange={() => setRole('user')}
+                  value="Guest"
+                  checked={role === 'Guest'}
+                  onChange={() => setRole('Guest')}
                   className="h-4 w-4 text-custom-blue focus:ring-custom-blue"
                 />
                 <span className="ml-2 text-sm text-gray-700">Traveler</span>
