@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
-import { User, Mail, Edit, Plus, Home } from 'lucide-react';
 import { useRouter } from 'next/router';
+import Image from 'next/image';
+import { User, Mail, Edit, Plus, Home, X } from 'lucide-react';
 import Link from 'next/link';
 import { Venue } from '@/types/booking';
 
@@ -26,58 +26,84 @@ export default function VenueManagerProfile() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showAddVenueModal, setShowAddVenueModal] = useState(false);
   const [formData, setFormData] = useState({
     bio: '',
     avatarUrl: ''
   });
+  
+  // Add venue form state
+  const [venueFormData, setVenueFormData] = useState({
+    title: '',
+    description: '',
+    imageUrl: '',
+    price: '',
+    maxGuests: '',
+    address: '',
+    postCode: '',
+    city: '',
+    country: '',
+    rating: 0,
+    amenities: {
+      wifi: false,
+      pets: false,
+      parking: false,
+      breakfast: false
+    }
+  });
+  const [createVenueLoading, setCreateVenueLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user is logged in
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('accessToken');
+    const fetchData = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        if (!user || !user.name) {
+          console.error('No user found in localStorage');
+          router.push('/login');
+          return;
+        }
+        
+        setUserData(user);
+        await fetchManagerVenues();
+      } catch (error) {
+        console.error('Error loading profile data:', error);
+      }
+    };
     
-    if (!storedUser || !token) {
-      router.push('/login');
-      return;
-    }
-
+    fetchData();
+  }, [router]);
+  
+  const fetchManagerVenues = async () => {
     try {
-      const user = JSON.parse(storedUser);
+      // First check localStorage for any saved venues
+      const savedVenues = localStorage.getItem('userVenues');
       
-      // Check if user is a venue manager
-      if (user.role !== 'venueManager') {
-        router.push('/profile');
-        return;
+      if (savedVenues) {
+        const parsedVenues = JSON.parse(savedVenues);
+        setVenues(parsedVenues);
+        console.log('Loaded venues from localStorage:', parsedVenues.length);
       }
       
-      setUserData(user);
-      
-      // Fetch manager's venues
-      fetchManagerVenues(token);
-    } catch (error) {
-      console.error('Failed to parse user data:', error);
-      setLoading(false);
-    }
-  }, [router]);
-
-  const fetchManagerVenues = async (token: string) => {
-    try {
+      // Then try to get venues from API
+      const token = localStorage.getItem('accessToken');
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const userName = user.name;
       
-      if (!userName) {
-        throw new Error('User information is missing');
+      if (!token || !userName) {
+        console.error('Authentication required to fetch venues from API');
+        setLoading(false);
+        return;
       }
       
-      console.log(`Attempting to fetch venues for profile: ${userName}`);
-      
-      // Try the profile endpoint first (check if token is prefixed with 'Bearer')
+      // Try to authenticate with the API
       const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+      console.log(`Fetching venues from API for user: ${userName}`);
       
+      // First try to fetch venues specific to the manager profile
       try {
-        // First attempt: directly access the profile venues
-        const profileResponse = await fetch(`https://v2.api.noroff.dev/holidaze/profiles/${userName}/venues`, {
+        const profileResponse = await fetch(`https://v2.api.noroff.dev/holidaze/profiles/${userName}?_venues=true`, {
           headers: {
             'Authorization': authToken,
             'Content-Type': 'application/json'
@@ -86,64 +112,68 @@ export default function VenueManagerProfile() {
         
         if (profileResponse.ok) {
           const profileData = await profileResponse.json();
-          console.log('Profile venues data retrieved successfully');
-          setVenues(profileData.data || []);
-          setLoading(false);
-          return;
-        }
-        
-        console.warn(`Profile endpoint failed with status: ${profileResponse.status}. Trying fallback...`);
-      } catch (profileError) {
-        console.error('Error with profile endpoint:', profileError);
-      }
-      
-      // Fallback method: Get all venues and filter by owner
-      console.log('Using fallback method: fetching all venues');
-      try {
-        const allVenuesResponse = await fetch('https://v2.api.noroff.dev/holidaze/venues', {
-          headers: {
-            'Authorization': authToken,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (!allVenuesResponse.ok) {
-          // Handle specific error codes
-          if (allVenuesResponse.status === 429) {
-            console.warn('Rate limit exceeded. Please try again in a moment.');
-            setVenues([]);
+          if (profileData.data?.venues && profileData.data.venues.length > 0) {
+            const apiVenues = profileData.data.venues;
+            console.log('API Venues loaded:', apiVenues.length);
+            
+            // Merge local venues with API venues
+            const localVenues = savedVenues ? JSON.parse(savedVenues).filter((v: Venue) => v.id.startsWith('temp-')) : [];
+            const mergedVenues = [...apiVenues, ...localVenues];
+            
+            setVenues(mergedVenues);
+            localStorage.setItem('userVenues', JSON.stringify(mergedVenues));
+            setLoading(false);
             return;
           }
-          console.error(`API error: ${allVenuesResponse.status}`);
-          setVenues([]);
-          return;
         }
+      } catch (profileError) {
+        console.error('Error fetching from profile endpoint:', profileError);
+      }
+      
+      // Fallback: fetch all venues, then filter to only show user's venues
+      try {
+        console.log('Falling back to fetching all venues...');
+        const allVenuesResponse = await fetch('https://v2.api.noroff.dev/holidaze/venues');
         
-        const allVenuesData = await allVenuesResponse.json();
-        
-        // Filter venues where the current user is the owner
-        const myVenues = allVenuesData.data?.filter((venue: {
-          owner?: {
-            name: string;
-            email: string;
+        if (allVenuesResponse.ok) {
+          const allVenuesData = await allVenuesResponse.json();
+          
+          // Filter venues where the current user is the owner
+          const myVenues = allVenuesData.data?.filter((venue: {
+            owner?: {
+              name: string;
+              email: string;
+            }
+          }) => {
+            if (venue.owner) {
+              return venue.owner.name === userName || 
+                     venue.owner.email === user.email;
+            }
+            return false;
+          }) || [];
+          
+          console.log('Filtered API venues:', myVenues.length);
+          
+          // Merge with any locally created venues
+          const localVenues = savedVenues ? JSON.parse(savedVenues).filter((v: Venue) => v.id.startsWith('temp-')) : [];
+          const mergedVenues = [...myVenues, ...localVenues];
+          
+          setVenues(mergedVenues);
+          localStorage.setItem('userVenues', JSON.stringify(mergedVenues));
+        } else {
+          console.error('Failed to fetch venues from API');
+          
+          // If we have local venues, use those
+          if (savedVenues) {
+            const localVenues = JSON.parse(savedVenues);
+            setVenues(localVenues);
           }
-        }) => {
-          if (venue.owner) {
-            return venue.owner.name === userName || 
-                   venue.owner.email === user.email;
-          }
-          return false;
-        }) || [];
-        
-        console.log(`Filtered ${myVenues.length} venues belonging to ${userName}`);
-        setVenues(myVenues);
-      } catch (fallbackError) {
-        console.error('Fallback method error:', fallbackError);
-        setVenues([]);
+        }
+      } catch (allVenuesError) {
+        console.error('Error in fallback fetch:', allVenuesError);
       }
     } catch (error) {
-      console.error('Error fetching venues:', error);
-      setVenues([]);
+      console.error('Error in venue fetching process:', error);
     } finally {
       setLoading(false);
     }
@@ -167,6 +197,127 @@ export default function VenueManagerProfile() {
       ...prev,
       [name]: value
     }));
+  };
+  
+  // Add Venue Form Handlers
+  const handleVenueInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setVenueFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  const handleClearInput = (fieldName: string) => {
+    setVenueFormData(prev => ({
+      ...prev,
+      [fieldName]: ''
+    }));
+  };
+  
+  const handleAmenityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setVenueFormData(prev => ({
+      ...prev,
+      amenities: {
+        ...prev.amenities,
+        [name]: checked
+      }
+    }));
+  };
+  
+  const handleRatingChange = (value: number) => {
+    setVenueFormData(prev => ({
+      ...prev,
+      rating: value
+    }));
+  };
+  
+  // Image validation is now handled directly in the form submission
+  
+  const handleCreateVenue = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateVenueLoading(true);
+    
+    try {
+      // Get username from local storage for owner info
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      
+      // Create a new venue that matches the required interface structure
+      const newVenue: Venue = {
+        id: `temp-${Date.now()}`,
+        name: venueFormData.title,
+        description: venueFormData.description,
+        price: Number(venueFormData.price),
+        maxGuests: Number(venueFormData.maxGuests),
+        rating: venueFormData.rating,
+        meta: {
+          wifi: venueFormData.amenities.wifi,
+          parking: venueFormData.amenities.parking,
+          breakfast: venueFormData.amenities.breakfast,
+          pets: venueFormData.amenities.pets
+        },
+        location: {
+          address: venueFormData.address || 'No address provided',
+          city: venueFormData.city || 'No city provided',
+          country: venueFormData.country || 'No country provided',
+          continent: 'Europe', // Default to Europe
+          lat: 0,
+          lng: 0
+          // Note: zip/postCode is stored in the address field in our UI
+        },
+        media: venueFormData.imageUrl ? [{
+          url: venueFormData.imageUrl,
+          alt: `Image of ${venueFormData.title}`
+        }] : []
+      };
+      
+      // Add owner information separately to avoid TypeScript errors
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (newVenue as any).owner = user ? {
+        name: user.name || 'Current User',
+        email: user.email || ''
+      } : {
+        name: 'Current User',
+        email: ''
+      };
+      
+      // Add the new venue to the venues list
+      const updatedVenues = [newVenue, ...venues];
+      setVenues(updatedVenues);
+      
+      // Save to localStorage so it persists across page reloads
+      localStorage.setItem('userVenues', JSON.stringify(updatedVenues));
+      
+      // Reset form and close modal
+      setVenueFormData({
+        title: '',
+        description: '',
+        imageUrl: '',
+        price: '',
+        maxGuests: '',
+        address: '',
+        postCode: '',
+        city: '',
+        country: '',
+        rating: 0,
+        amenities: {
+          wifi: false,
+          pets: false,
+          parking: false,
+          breakfast: false
+        }
+      });
+      
+      setShowAddVenueModal(false);
+      alert('Venue created successfully!');
+      
+    } catch (error) {
+      console.error('Error creating venue:', error);
+      alert(error instanceof Error ? error.message : 'Failed to create venue');
+    } finally {
+      setCreateVenueLoading(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -265,10 +416,13 @@ export default function VenueManagerProfile() {
           </div>
         </div>
         <div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
-          <Link href="/holidaze/venues/create" className="flex items-center justify-center px-4 py-2 bg-custom-blue hover:bg-blue-700 rounded-md text-white transition-colors">
+          <button 
+            onClick={() => setShowAddVenueModal(true)}
+            className="flex items-center justify-center px-4 py-2 bg-custom-blue hover:bg-blue-700 rounded-md text-white transition-colors"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Add Venue
-          </Link>
+          </button>
           <button 
             onClick={handleEditFormOpen}
             className="flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 transition-colors"
@@ -279,6 +433,248 @@ export default function VenueManagerProfile() {
         </div>
       </div>
 
+      {/* Add Venue Modal */}
+      {showAddVenueModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-center text-custom-blue">CREATE A NEW VENUE</h2>
+                <button 
+                  onClick={() => setShowAddVenueModal(false)}
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <form onSubmit={handleCreateVenue}>
+                {/* Title */}
+                <div className="mb-4 relative">
+                  <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    value={venueFormData.title}
+                    onChange={handleVenueInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
+                    placeholder="Title.."
+                    required
+                  />
+                  <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
+                    onClick={() => handleClearInput('title')} />
+                </div>
+                
+                {/* Description */}
+                <div className="mb-4 relative">
+                  <textarea
+                    id="description"
+                    name="description"
+                    value={venueFormData.description}
+                    onChange={handleVenueInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
+                    placeholder="Description.."
+                    rows={3}
+                    required
+                  />
+                  <X className="absolute right-3 top-8 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
+                    onClick={() => handleClearInput('description')} />
+                </div>
+                
+                {/* Image URL */}
+                <div className="mb-4 flex gap-2">
+                  <div className="flex-grow relative">
+                    <input
+                      type="text"
+                      id="imageUrl"
+                      name="imageUrl"
+                      value={venueFormData.imageUrl}
+                      onChange={handleVenueInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
+                      placeholder="New Image URL..."
+                    />
+                    <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
+                      onClick={() => handleClearInput('imageUrl')} />
+                  </div>
+                
+                </div>
+                
+                {/* Price and Max Guests */}
+                <div className="mb-4 grid grid-cols-2 gap-4">
+                  <div className="relative">
+                    <input
+                      type="number"
+                      id="price"
+                      name="price"
+                      value={venueFormData.price}
+                      onChange={handleVenueInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
+                      placeholder="Price.."
+                      required
+                      min="0"
+                    />
+                    <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
+                      onClick={() => handleClearInput('price')} />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      id="maxGuests"
+                      name="maxGuests"
+                      value={venueFormData.maxGuests}
+                      onChange={handleVenueInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
+                      placeholder="Max guests.."
+                      required
+                      min="1"
+                    />
+                    <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
+                      onClick={() => handleClearInput('maxGuests')} />
+                  </div>
+                </div>
+                
+                {/* Amenities */}
+                <div className="mb-6">
+                  <p className="font-medium mb-2">[x] This Venue offers</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        name="wifi"
+                        checked={venueFormData.amenities.wifi}
+                        onChange={handleAmenityChange}
+                        className="form-checkbox rounded text-custom-blue"
+                      />
+                      <span>Wifi</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        name="pets"
+                        checked={venueFormData.amenities.pets}
+                        onChange={handleAmenityChange}
+                        className="form-checkbox rounded text-custom-blue"
+                      />
+                      <span>Pets</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        name="parking"
+                        checked={venueFormData.amenities.parking}
+                        onChange={handleAmenityChange}
+                        className="form-checkbox rounded text-custom-blue"
+                      />
+                      <span>Parking</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        name="breakfast"
+                        checked={venueFormData.amenities.breakfast}
+                        onChange={handleAmenityChange}
+                        className="form-checkbox rounded text-custom-blue"
+                      />
+                      <span>Breakfast</span>
+                    </label>
+                  </div>
+                </div>
+                
+                {/* Location */}
+                <div className="mb-6">
+                  <p className="font-medium mb-2 text-purple-700">LOCATION</p>
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="address"
+                        name="address"
+                        value={venueFormData.address}
+                        onChange={handleVenueInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
+                        placeholder="Address..."
+                      />
+                      <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
+                        onClick={() => handleClearInput('address')} />
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="postCode"
+                        name="postCode"
+                        value={venueFormData.postCode}
+                        onChange={handleVenueInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
+                        placeholder="Post code..."
+                      />
+                      <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
+                        onClick={() => handleClearInput('postCode')} />
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="city"
+                        name="city"
+                        value={venueFormData.city}
+                        onChange={handleVenueInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
+                        placeholder="City..."
+                      />
+                      <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
+                        onClick={() => handleClearInput('city')} />
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="country"
+                        name="country"
+                        value={venueFormData.country}
+                        onChange={handleVenueInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
+                        placeholder="Country..."
+                      />
+                      <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
+                        onClick={() => handleClearInput('country')} />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Rating */}
+                <div className="mb-6">
+                  <p className="font-medium mb-2">[x] Select your rating for the venue</p>
+                  <div className="flex space-x-8">
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <label key={value} className="flex items-center space-x-1">
+                        <input
+                          type="radio"
+                          name="rating"
+                          value={value}
+                          checked={Number(venueFormData.rating) === value}
+                          onChange={() => handleRatingChange(value)}
+                          className="form-radio text-custom-blue"
+                        />
+                        <span>{value}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Submit Button */}
+                <div className="mt-6">
+                  <button
+                    type="submit"
+                    className="w-full bg-custom-blue hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center"
+                    disabled={createVenueLoading}
+                  >
+                    {createVenueLoading ? 'Creating...' : 'Create Venue'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Edit Profile Form */}
       {showEditForm && (
         <div className="mt-8 p-6 bg-white rounded-lg shadow-md">
