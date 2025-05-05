@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { User, Mail, Calendar, Edit, Plus, Home } from 'lucide-react';
+import { User, Mail, Edit, Plus, Home } from 'lucide-react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { Venue } from '@/types/booking';
@@ -9,6 +9,7 @@ import { Venue } from '@/types/booking';
 interface UserData {
   name: string;
   email: string;
+  bio?: string;
   avatar?: {
     url: string;
     alt: string;
@@ -17,12 +18,18 @@ interface UserData {
     url: string;
     alt: string;
   };
+  role?: string;
 }
 
 export default function VenueManagerProfile() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [formData, setFormData] = useState({
+    bio: '',
+    avatarUrl: ''
+  });
   const router = useRouter();
 
   useEffect(() => {
@@ -115,7 +122,12 @@ export default function VenueManagerProfile() {
         const allVenuesData = await allVenuesResponse.json();
         
         // Filter venues where the current user is the owner
-        const myVenues = allVenuesData.data?.filter((venue: any) => {
+        const myVenues = allVenuesData.data?.filter((venue: {
+          owner?: {
+            name: string;
+            email: string;
+          }
+        }) => {
           if (venue.owner) {
             return venue.owner.name === userName || 
                    venue.owner.email === user.email;
@@ -137,10 +149,60 @@ export default function VenueManagerProfile() {
     }
   };
 
-  const handleEditProfile = () => {
-    // Implement profile editing logic here
-    // For now, we'll just show an alert
-    alert('Edit profile functionality will be implemented soon');
+  const handleEditFormOpen = () => {
+    setFormData({
+      bio: userData?.bio || '',
+      avatarUrl: userData?.avatar?.url || ''
+    });
+    setShowEditForm(true);
+  };
+
+  const handleEditFormClose = () => {
+    setShowEditForm(false);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!userData) return;
+    
+    // Create updated user data with form values
+    const updatedUserData = {
+      ...userData,
+      bio: formData.bio || userData.bio,
+      
+      // Update avatar if provided, otherwise keep existing
+      avatar: formData.avatarUrl && formData.avatarUrl.trim() ? {
+        url: formData.avatarUrl.trim(),
+        alt: 'Venue manager avatar'
+      } : userData.avatar,
+      
+      // Keep existing banner if any
+      banner: userData.banner,
+      
+      // Ensure we keep venue manager status
+      venueManager: true
+    };
+    
+    console.log('Updated user data:', updatedUserData);
+    
+    // Update local storage (same as GuestProfile does)
+    localStorage.setItem('user', JSON.stringify(updatedUserData));
+    
+    // Update component state
+    setUserData(updatedUserData);
+    setShowEditForm(false);
+    
+    // Notify user
+    alert('Profile updated successfully!');
   };
 
   if (loading) {
@@ -189,7 +251,14 @@ export default function VenueManagerProfile() {
                 Manager
               </span>
             </div>
-            <div className="flex items-center text-custom-gray mt-1">
+          
+            {userData.bio && (
+              <div className="mt-3 text-gray-700 max-w-md">
+                <span className="font-medium">Bio:</span> <span className="italic">&ldquo;{userData.bio}&rdquo;</span>
+              </div>
+              
+            )}
+              <div className="flex items-center text-custom-gray mt-1">
               <Mail className="w-4 h-4 mr-1" />
               <span>{userData.email}</span>
             </div>
@@ -201,7 +270,7 @@ export default function VenueManagerProfile() {
             Add Venue
           </Link>
           <button 
-            onClick={handleEditProfile}
+            onClick={handleEditFormOpen}
             className="flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 transition-colors"
           >
             <Edit className="w-4 h-4 mr-2" />
@@ -210,6 +279,72 @@ export default function VenueManagerProfile() {
         </div>
       </div>
 
+      {/* Edit Profile Form */}
+      {showEditForm && (
+        <div className="mt-8 p-6 bg-white rounded-lg shadow-md">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-custom-blue">Edit Profile</h2>
+            <button 
+              onClick={handleEditFormClose}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+                Your Bio
+              </label>
+              <textarea
+                id="bio"
+                name="bio"
+                value={formData.bio}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-custom-blue"
+                rows={3}
+                placeholder="Tell us a bit about yourself"
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label htmlFor="avatarUrl" className="block text-sm font-medium text-gray-700 mb-1">
+                Avatar URL
+              </label>
+              <input
+                type="text"
+                id="avatarUrl"
+                name="avatarUrl"
+                value={formData.avatarUrl}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-custom-blue"
+                placeholder="Enter avatar image URL"
+              />
+            </div>
+            
+
+            
+            <div className="flex space-x-3">
+              <button
+                type="submit"
+                className="px-4 py-2 bg-custom-blue hover:bg-blue-600 text-white rounded-md transition-colors"
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button
+                type="button"
+                onClick={handleEditFormClose}
+                className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      
       {/* My Venues Section */}
       <div className="mt-8">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">My Venues</h2>
@@ -222,7 +357,7 @@ export default function VenueManagerProfile() {
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <Home className="w-12 h-12 mx-auto text-gray-400 mb-3" />
             <h3 className="text-lg font-medium text-gray-700 mb-2">No venues yet</h3>
-            <p className="text-gray-500 mb-4">You haven't created any venues yet.</p>
+            <p className="text-gray-500 mb-4">You haven&apos;t created any venues yet.</p>
             <Link href="/holidaze/venues/create" className="inline-flex items-center px-4 py-2 bg-custom-blue text-white rounded-md hover:bg-blue-700 transition-colors">
               <Plus className="w-4 h-4 mr-2" />
               Add Your First Venue
