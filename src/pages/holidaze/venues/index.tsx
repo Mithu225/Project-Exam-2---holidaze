@@ -14,7 +14,6 @@ export default function VenueManagementPage() {
   const router = useRouter();
 
   useEffect(() => {
- 
     const storedUser = localStorage.getItem('user');
     const token = localStorage.getItem('accessToken');
     
@@ -26,13 +25,11 @@ export default function VenueManagementPage() {
     try {
       const user = JSON.parse(storedUser);
     
-      if (user.role !== 'venueManager') {
-        router.push('/profile');
-        return;
-      }
+      // Redirect all venue managers to the profile page which now has integrated venue management
+      router.push('/profile');
+      return;
       
- 
-      fetchMyVenues(user.name, token);
+      // This code will never run since we're redirecting above
     } catch (error) {
       console.error('Failed to parse user data:', error);
       setLoading(false);
@@ -57,6 +54,12 @@ export default function VenueManagementPage() {
       if (profileResponse.ok) {
         const profileData = await profileResponse.json();
         console.log('Profile venues data:', profileData);
+      // Debug image URLs
+      if (profileData.data && profileData.data.length > 0) {
+        profileData.data.forEach(venue => {
+          console.log(`Venue ${venue.name} has images:`, venue.media);
+        });
+      }
         setVenues(profileData.data || []);
         setLoading(false);
         return;
@@ -240,12 +243,16 @@ export default function VenueManagementPage() {
                       <div className="flex items-center space-x-3">
                         <div className="w-12 h-12 rounded overflow-hidden bg-gray-200 relative flex-shrink-0">
                           {venue.media && venue.media.length > 0 ? (
-                            <Image
-                              src={venue.media[0].url}
-                              alt={venue.media[0].alt || venue.name}
-                              fill
-                              className="object-cover"
-                            />
+                            <>
+                              {/* Debug information */}
+                              {console.log('Rendering image with URL:', venue.media[0].url)}
+                              {/* Using regular img tag as fallback */}
+                              <img
+                                src={venue.media[0].url}
+                                alt={venue.media[0].alt || venue.name}
+                                className="object-cover w-full h-full"
+                              />
+                            </>
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               <Home className="w-6 h-6 text-gray-400" />

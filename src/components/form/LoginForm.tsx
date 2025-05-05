@@ -70,8 +70,10 @@ export default function LoginForm() {
         bio: data.bio || '',  // Save bio from the API response
         avatar: data.avatar,
         banner: data.banner,
-        role: role 
+        role: role  // Make sure this is 'venueManager' when that role is selected
       }));
+      
+      console.log(`Setting user role to: ${role}`);
       
       console.log(`Successfully logged in as ${data.name}`);
       

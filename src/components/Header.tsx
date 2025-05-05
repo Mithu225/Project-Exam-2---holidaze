@@ -86,13 +86,14 @@ export default function Header() {
               <Link 
                 href={isLoggedIn ? "/profile" : "/login"} 
                 className="hover:text-custom-blue transition flex items-center gap-1"
+                title="View Profile"
               >
                 <User className="w-5 h-5 stroke-[2.5px]" />
                 <span>
                   {isLoggedIn ? (
                     <span className="flex flex-col text-xs sm:text-sm">
                       <span className="font-bold">{userName}</span>
-                      <span className="text-custom-gray">{userRole}</span>
+                      <span className="text-custom-gray">{userRole === 'venueManager' ? 'Manager' : userRole}</span>
                     </span>
                   ) : (
                     "Account"
