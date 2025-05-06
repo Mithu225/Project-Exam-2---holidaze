@@ -24,6 +24,11 @@ export interface Venue {
     breakfast: boolean;
     pets: boolean;
   };
+  owner?: {
+    name: string;
+    email: string;
+    avatar?: string;
+  };
 }
 
 export interface Booking {

@@ -30,13 +30,43 @@ export default function SearchBar() {
   useEffect(() => {
     const fetchVenues = async () => {
       try {
+        // First check localStorage for user-created venues
+        const userVenues = localStorage.getItem('userVenues');
+        let localVenues: Venue[] = [];
+        
+        if (userVenues) {
+          try {
+            localVenues = JSON.parse(userVenues);
+            console.log('Found user-created venues in search:', localVenues.length);
+          } catch (parseError) {
+            console.error('Error parsing user venues from localStorage:', parseError);
+          }
+        }
+        
+        // Then get venues from API
         const response = await fetch("https://v2.api.noroff.dev/holidaze/venues");
         const result = await response.json();
+        let apiVenues: Venue[] = [];
+        
         if (result?.data) {
-          setVenues(result.data);
+          apiVenues = result.data;
         }
+        
+        // Combine all venues, with local venues first
+        setVenues([...localVenues, ...apiVenues]);
       } catch (error) {
         console.error("Error fetching venues:", error);
+        
+        // If API fails, try to at least show local venues
+        const userVenues = localStorage.getItem('userVenues');
+        if (userVenues) {
+          try {
+            const localVenues = JSON.parse(userVenues);
+            setVenues(localVenues);
+          } catch (parseError) {
+            console.error('Error parsing user venues from localStorage:', parseError);
+          }
+        }
       }
     };
 

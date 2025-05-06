@@ -63,6 +63,7 @@ export default function LoginForm() {
       const { data } = await response.json();
       
     
+      // Store the new user information
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('user', JSON.stringify({
         name: data.name,
@@ -70,8 +71,14 @@ export default function LoginForm() {
         bio: data.bio || '',  // Save bio from the API response
         avatar: data.avatar,
         banner: data.banner,
-        role: role  // Make sure this is 'venueManager' when that role is selected
+        role: role,  // Make sure this is 'venueManager' when that role is selected
+        lastLoginAt: new Date().toISOString() // Track login time
       }));
+      
+      // Initialize venues array for first-time users
+      if (!localStorage.getItem('userVenues')) {
+        localStorage.setItem('userVenues', JSON.stringify([]));
+      }
       
       console.log(`Setting user role to: ${role}`);
       

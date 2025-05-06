@@ -2,7 +2,6 @@
 import { User, LogOut } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import SearchBar from "./SearchBar";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
@@ -78,8 +77,6 @@ export default function Header() {
           </Link>
         </div>
 
-       
-      <SearchBar />
       <nav>
           <ul className="flex flex-col sm:flex-row font-bold gap-4 items-center">
             <li>

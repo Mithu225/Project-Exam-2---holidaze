@@ -1,7 +1,7 @@
 'use client';
 import Image from 'next/image';
-import { Venue, Booking } from '@/types/booking';
-import { Star, Wifi, Car, Coffee, PawPrint, Users, Calendar, Info } from 'lucide-react';
+import { Venue } from '@/types/booking';
+import { Star, Wifi, Car, Coffee, PawPrint, Users, Calendar, Info, RefreshCw } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import DatePicker from 'react-datepicker';
@@ -13,18 +13,46 @@ interface VenueDetailsProps {
 }
 
 export default function VenueDetails({ venueId }: VenueDetailsProps) {
-  const [venue, setVenue] = useState<Venue | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-
+  const [venue, setVenue] = useState<Venue | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  
+  // Booking states
   const [checkIn, setCheckIn] = useState<string>("");
   const [checkOut, setCheckOut] = useState<string>("");
   const [guests, setGuests] = useState<number>(1);
-  const [nights, setNights] = useState<number>(0);
-  const [bookedDates, setBookedDates] = useState<{start: Date, end: Date}[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState<boolean>(false);
+  const [nights, setNights] = useState<number>(0);
+  const [bookedDates, setBookedDates] = useState<Date[]>([]);
 
+  // Helper function to generate date range
+  const generateDateRange = useCallback((start: Date, end: Date): Date[] => {
+    const dates: Date[] = [];
+    const current = new Date(start);
+    const endDate = new Date(end);
+    
+    while (current <= endDate) {
+      dates.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return dates;
+  }, []);
+
+  const renderStars = (rating: number) => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <Star 
+          key={i} 
+          className={`h-5 w-5 ${i <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} 
+        />
+      );
+    }
+    return stars;
+  };
 
   const calculateNights = useCallback(() => {
     if (!checkIn || !checkOut) return 0;
@@ -40,217 +68,326 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     setNights(calculateNights());
   }, [checkIn, checkOut, calculateNights]);
 
-  
-  useEffect(() => {
-    const fetchVenue = async () => {
-      try {
-        const response = await fetch(`https://v2.api.noroff.dev/holidaze/venues/${venueId}`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch venue: ${response.statusText}`);
+  // Manual refresh function with visual feedback
+  const refreshVenue = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchVenue(true);
+    } finally {
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 500); // Minimum feedback time
+    }
+  };
+
+  // Function to fetch venue data with reliable cache busting
+  const fetchVenue = useCallback(async (bypassCache = true) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // First check if this is a local venue (with temp- ID)
+      if (venueId && venueId.startsWith('temp-')) {
+        // Check localStorage for the venue
+        const userVenues = localStorage.getItem('userVenues');
+        if (userVenues) {
+          // Always parse fresh from localStorage to get latest data
+          const parsedVenues = JSON.parse(userVenues);
+          const localVenue = parsedVenues.find((v: Venue) => v.id === venueId);
+          
+          if (localVenue) {
+            setVenue(localVenue);
+            setLoading(false);
+            return; // Exit early since we found the venue
+          }
         }
-        const data = await response.json();
-        setVenue(data.data);
-        setLoading(false);
+      }
+      
+      // If not found in localStorage or not a local venue, try the API
+      // Add timestamp for cache busting
+      let apiUrl = `https://v2.api.noroff.dev/holidaze/venues/${venueId}`;
+      
+      if (bypassCache) {
+        const timestamp = Date.now();
+        apiUrl += `?_=${timestamp}`;
+      }
+      
+      const response = await fetch(apiUrl, {
+        cache: 'no-store', // Tell fetch to always get fresh data
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch venue: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      const apiVenue = data.data;
+      
+      // Process owner information
+      if (apiVenue) {
+        // Extract owner information from API response
+        if (typeof apiVenue.owner === 'string') {
+          apiVenue.owner = {
+            name: apiVenue.owner,
+            email: '',
+            avatar: ''
+          };
+        }
+        
+        setVenue(apiVenue);
+      } else {
+        throw new Error('No venue data received');
+      }
+    } catch (error) {
+      console.error('Error fetching venue:', error);
+      const errorMessage = 'Failed to fetch venue data';
+      
+      // Try to find venue in localStorage as fallback
+      try {
+        const userVenues = localStorage.getItem('userVenues');
+        if (userVenues) {
+          const parsedVenues = JSON.parse(userVenues);
+          const localVenue = parsedVenues.find((v: Venue) => v.id === venueId);
+          
+          if (localVenue) {
+            setVenue(localVenue);
+            setLoading(false);
+            return; // Exit early since we found the venue
+          }
+        }
+      } catch (localError) {
+        console.error('Error checking localStorage for venue:', localError);
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [venueId]); // Add venueId as a dependency since it's used inside the callback
+
+  useEffect(() => {
+    // Call fetchVenue when component mounts or venueId changes
+    fetchVenue(true); // true = bypassCache
+    
+    // Clear any cached data
+    sessionStorage.removeItem('venueCache');
+    localStorage.removeItem('venueCache');
+  }, [venueId, fetchVenue]); // Re-run when venueId or fetchVenue changes
+
+  // Load booked dates when component mounts or venueId changes
+  useEffect(() => {
+    const loadBookedDates = () => {
+      try {
+        const storedBookings = localStorage.getItem('bookings');
+        if (!storedBookings) {
+          setBookedDates([]);
+          return;
+        }
+
+        const bookings = JSON.parse(storedBookings);
+        const dates: Date[] = [];
+
+        bookings.forEach((booking: { venue: { id: string }, dateFrom: string, dateTo: string }) => {
+          if (booking.venue.id === venueId) {
+            const startDate = new Date(booking.dateFrom);
+            const endDate = new Date(booking.dateTo);
+
+            // Make sure dates are valid
+            if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+              const dateRange = generateDateRange(startDate, endDate);
+              dates.push(...dateRange);
+            }
+          }
+        });
+
+        console.log('Loaded booked dates:', dates); // Debug log
+        setBookedDates(dates);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load venue details';
-        setError(errorMessage);
-        setLoading(false);
+        console.error('Error loading booked dates:', err);
+        setBookedDates([]);
       }
     };
 
-    fetchVenue();
-  }, [venueId]);
+    loadBookedDates();
+  }, [venueId, generateDateRange]);
 
-  // Load existing bookings for this venue
-  useEffect(() => {
-    try {
-      const storedBookings = localStorage.getItem('bookings');
-      if (storedBookings) {
-        const allBookings = JSON.parse(storedBookings) as Booking[];
-        const venueBookings = allBookings.filter(booking => booking.venue.id === venueId);
-        
-        // Convert booking dates to date ranges, ensuring entire days are covered
-        const bookedDateRanges = venueBookings.map(booking => {
-          const start = new Date(booking.dateFrom);
-          const end = new Date(booking.dateTo);
-          
-          // Set hours to ensure full days are covered
-          start.setHours(0, 0, 0, 0);
-          end.setHours(23, 59, 59, 999);
-          
-          return { start, end };
-        });
-        
-        setBookedDates(bookedDateRanges);
-      }
-    } catch (error) {
-      console.error('Error loading bookings:', error);
-    }
-  }, [venueId]);
-
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }).map((_, index) => (
-      <Star
-        key={index}
-        className={`w-5 h-5 ${
-          index < rating ? 'fill-yellow-400 text-yellow-400' : 'fill-white-400 text-gray-400'
-        }`}
-      />
-    ));
+  const formatPrice = (price?: number): string => {
+    if (price === undefined) return 'N/A';
+    return `${price.toLocaleString('no-NO')} NOK`;
   };
 
-  // Format price
-  const formatPrice = (price: number) => {
-    return price.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'NOK',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    });
-  };
-
-  if (loading) return <div className="text-center py-8">Loading...</div>;
-  if (error) return <div className="text-center text-red-500 py-8">{error}</div>;
-  if (!venue) return <div className="text-center py-8">Venue not found</div>;
-
-  const getTotalPrice = () => {
-    if (!venue) return 0;
-    return venue.price * nights;
-  };
-
-  // Check if a date is within any of the booked ranges
-  const isDateBooked = (date: Date) => {
-    return bookedDates.some(range => {
-      // Create a new date object at midnight to ensure consistent comparison
-      const testDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      const rangeStart = new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate());
-      const rangeEnd = new Date(range.end.getFullYear(), range.end.getMonth(), range.end.getDate());
-      
-      // Test if the date is within the range (inclusive of start and end)
-      return testDate >= rangeStart && testDate <= rangeEnd;
-    });
-  };
-
-  // Custom day renderer for the calendar
-  const renderDayContents = (day: number, date: Date) => {
-    const isBooked = isDateBooked(date);
-    return (
-      <div className={`${isBooked ? 'text-red-500 line-through bg-red-100 rounded-full' : ''}`}>
-        {day}
-      </div>
-    );
-  };
-
-  const handleDateChange = (dates: [Date | null, Date | null]) => {
-    const [start, end] = dates;
-    if (start) {
-      setCheckIn(format(start, 'yyyy-MM-dd'));
-    } else {
-      setCheckIn("");
-    }
+  // Handle date range selection for check-in and check-out
+  const handleDateChange = (range: [Date | null, Date | null]) => {
+    console.log('Date range selected:', range); // Debug log
     
-    if (end) {
-      setCheckOut(format(end, 'yyyy-MM-dd'));
+    if (range[0] && range[1]) {
+      // Both dates selected - ensure chronological order
+      const startDate = range[0];
+      const endDate = range[1];
+      
+      // Always save dates in chronological order (earlier date as check-in)
+      if (startDate <= endDate) {
+        setCheckIn(format(startDate, 'yyyy-MM-dd'));
+        setCheckOut(format(endDate, 'yyyy-MM-dd'));
+      } else {
+        // If user selected dates in reverse order, swap them
+        setCheckIn(format(endDate, 'yyyy-MM-dd'));
+        setCheckOut(format(startDate, 'yyyy-MM-dd'));
+      }
     } else {
-      setCheckOut("");
+      // Handle partial selection
+      if (range[0]) {
+        const formattedDate = format(range[0], 'yyyy-MM-dd');
+        setCheckIn(formattedDate);
+        console.log('Set check-in date:', formattedDate);
+      } else {
+        setCheckIn("");
+      }
+      
+      if (range[1]) {
+        const formattedDate = format(range[1], 'yyyy-MM-dd');
+        setCheckOut(formattedDate);
+        console.log('Set check-out date:', formattedDate);
+      } else if (!range[0]) {
+        // Only clear check-out if explicitly clearing the range
+        setCheckOut("");
+      }
     }
   };
 
-  // Function to toggle calendar view
   const toggleCalendar = () => {
     setIsCalendarOpen(!isCalendarOpen);
   };
 
-  const handleBookNow = async () => {
-    if (!checkIn || !checkOut) {
-      alert("Please select check-in and check-out dates");
-      return;
-    }
+  const canReserve = () => {
+    return checkIn && checkOut && guests > 0;
+  };
 
-    // Check if user is logged in
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('accessToken');
-    
-    if (!storedUser || !token) {
-      alert("Please log in to book a venue");
-      router.push('/login');
-      return;
-    }
-    
-    // Parse user data
-    const userData = JSON.parse(storedUser);
-    
-    // Check if selected dates overlap with any booked dates
-    const checkInDate = new Date(checkIn);
-    const checkOutDate = new Date(checkOut);
-    
-    const hasOverlap = bookedDates.some(range => {
-      return (
-        (checkInDate >= range.start && checkInDate <= range.end) || 
-        (checkOutDate >= range.start && checkOutDate <= range.end) ||
-        (checkInDate <= range.start && checkOutDate >= range.end)
-      );
-    });
-    
-    if (hasOverlap) {
-      alert("Some of the selected dates are already booked. Please select different dates.");
-      return;
-    }
+  const handleReservation = async () => {
+    if (!canReserve()) return;
     
     try {
-      const bookingData = {
-        venueId: venue?.id,
-        checkIn,
-        checkOut,
-        guests,
-        venueData: {
-          id: venue?.id,
-          name: venue?.name,
-          description: venue?.description,
-          price: venue?.price,
-          media: venue?.media,
-          rating: venue?.rating,
-          maxGuests: venue?.maxGuests,
-          meta: venue?.meta
-        }
-      };
+      if (!venue) return;
+
+      // Get current user info
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) {
+        throw new Error('You must be logged in to make a booking');
+      }
+      const userData = JSON.parse(storedUser);
       
-      // Store booking in localStorage (in a real app, this would be an API call)
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-      bookings.push({
+      // Create a new booking with complete venue information
+      const booking = {
         id: `booking-${Date.now()}`,
         dateFrom: checkIn,
         dateTo: checkOut,
         guests: guests,
-        venue: bookingData.venueData,
-        created: new Date().toISOString(),
-        userId: userData.email // Store user identifier with booking
-      });
-      localStorage.setItem('bookings', JSON.stringify(bookings));
+        userId: userData.email, // Add userId to the booking
+        venue: {
+          id: venue.id,
+          name: venue.name,
+          description: venue.description,
+          price: venue.price,
+          rating: venue.rating,
+          maxGuests: venue.maxGuests,
+          media: venue.media,
+          location: venue.location,
+          meta: venue.meta
+        },
+      };
       
-      // Update booked dates locally
-      setBookedDates([...bookedDates, { start: checkInDate, end: checkOutDate }]);
+      // Store the booking in localStorage using the correct key
+      const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+      existingBookings.push(booking);
+      localStorage.setItem('bookings', JSON.stringify(existingBookings));
       
-      // Navigate to profile page
+      // Update booked dates
+      setBookedDates([...bookedDates, ...generateDateRange(new Date(checkIn), new Date(checkOut))]);
+      
+      // Show success message
+      alert('Booking successful!');
+      
+      // Redirect to profile page
       router.push('/profile');
-    } catch (error) {
-      console.error('Error creating booking:', error);
-      alert('There was an error creating your booking. Please try again.');
+    } catch (err) {
+      console.error('Error creating booking:', err);
+      alert('Failed to create booking. Please try again.');
     }
   };
 
-  const handleExploreMore = () => {
-    router.push('/');
-  };
 
-  const venueImage = venue.media && venue.media.length > 0
+
+  // Render loading, error or content
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-custom-blue"></div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <p className="font-medium">Error loading venue</p>
+          <p>{error}</p>
+          <button 
+            onClick={refreshVenue}
+            className="mt-4 flex items-center bg-custom-blue text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+            <RefreshCw size={16} className="mr-2" />
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!venue) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+          <p>Venue not found. It may have been removed.</p>
+          <button 
+            onClick={() => router.push('/')}
+            className="mt-4 bg-custom-blue text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+            Return to Venues
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const venueImage = venue?.media && venue.media.length > 0
     ? venue.media[0]
     : { url: '/asset/placeholder-venue.jpg', alt: 'No image available' };
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-4">
+        <button 
+          onClick={() => router.back()}
+          className="text-custom-blue hover:underline flex items-center"
+        >
+          &larr; Back
+        </button>
+        
+        <button 
+          onClick={refreshVenue}
+          className={`flex items-center text-custom-blue hover:text-blue-700 ${isRefreshing ? 'opacity-50' : ''}`}
+          disabled={isRefreshing}
+        >
+          <RefreshCw size={16} className={`mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
+      
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-       
         <div className="w-full relative h-[400px] mb-6">
           <Image
             src={venueImage.url}
@@ -263,7 +400,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
         <div className="px-6 pb-4">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-3xl font-bold text-custom-blue">{venue.name}</h1>
-            <div className="flex">{renderStars(venue.rating)}</div>
+            <div className="flex">{renderStars(venue.rating || 0)}</div>
           </div>
           <div className="text-custom-orange text-lg font-semibold">Price {formatPrice(venue.price)} per night</div>
         </div>
@@ -275,7 +412,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               <h3 className="text-xl font-semibold mb-2">Description</h3>
               <p className="text-gray-700">{venue.description}</p>
             </div>
-            
+
             <div className="flex items-center mb-4 text-gray-700">
               <Users className="w-5 h-5 mr-2" />
               <span>{venue.maxGuests} Guests</span>
@@ -319,136 +456,157 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               </div>
             </div>
             
-            <div className="text-sm text-gray-500 mt-6">
-              Venue created: {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </div>
-            
-            <div className="mt-8">
-              <button 
-                onClick={handleExploreMore}
-                className="bg-white border border-custom-blue text-custom-blue py-2 px-4 rounded-md hover:bg-gray-50 transition-colors"
-              >
-                Explore More Venues
-              </button>
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-2">Location</h3>
+              <div className="mb-2 flex items-start">
+                <div className="font-medium w-20">Address:</div>
+                <div>{venue.location?.address || 'Address not provided'}</div>
+              </div>
+              <div className="mb-2 flex items-start">
+                <div className="font-medium w-20">City:</div>
+                <div>{venue.location?.city || 'City not provided'}</div>
+              </div>
+              <div className="mb-2 flex items-start">
+                <div className="font-medium w-20">Country:</div>
+                <div>{venue.location?.country || 'Country not provided'}</div>
+              </div>
+              {venue.location?.zip && (
+                <div className="mb-2 flex items-start">
+                  <div className="font-medium w-20">Zip:</div>
+                  <div>{venue.location.zip}</div>
+                </div>
+              )}
             </div>
           </div>
           
-      
           <div>
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Select Dates</h3>
-                  <button 
-                    onClick={toggleCalendar}
-                    className="text-custom-blue hover:text-blue-700 flex items-center"
-                  >
-                    <Calendar className="w-4 h-4 mr-1" />
-                    {isCalendarOpen ? 'Hide Calendar' : 'Show Calendar'}
-                  </button>
-                </div>
+            <div className="bg-gray-50 p-6 rounded-lg shadow-md mb-6">
+              <h3 className="text-xl font-semibold mb-4">Reserve This Venue</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Check-in / Check-out</label>
+                <button 
+                  onClick={toggleCalendar}
+                  className="w-full flex items-center justify-between bg-white border border-gray-300 rounded-md px-3 py-2 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-custom-blue"
+                >
+                  <div className="flex items-center">
+                    <Calendar className="h-5 w-5 text-gray-400 mr-2" />
+                    <span>
+                      {checkIn && checkOut
+                        ? (() => {
+                            // Ensure dates are displayed in chronological order
+                            const startDate = new Date(checkIn);
+                            const endDate = new Date(checkOut);
+                            
+                            // If dates are in wrong order, swap them for display
+                            if (startDate <= endDate) {
+                              return `${format(startDate, 'MMM d, yyyy')} - ${format(endDate, 'MMM d, yyyy')}`;
+                            } else {
+                              return `${format(endDate, 'MMM d, yyyy')} - ${format(startDate, 'MMM d, yyyy')}`;
+                            }
+                          })()
+                        : 'Select dates'}
+                    </span>
+                  </div>
+                </button>
                 
                 {isCalendarOpen && (
-                  <div className="mb-4">
-                    <div className="flex items-center mb-2 text-sm text-gray-500">
-                      <Info className="w-4 h-4 mr-1 text-custom-blue" />
-                      <span>Dates with <span className="text-red-500 line-through">strikethrough</span> are already booked</span>
-                    </div>
+                  <div className="mt-2 bg-white rounded-md shadow-lg p-4 z-10">
                     <DatePicker
                       selected={checkIn ? new Date(checkIn) : null}
                       onChange={handleDateChange}
                       startDate={checkIn ? new Date(checkIn) : null}
                       endDate={checkOut ? new Date(checkOut) : null}
-                      minDate={new Date()}
                       selectsRange
                       inline
-                      monthsShown={1}
-                      renderDayContents={renderDayContents}
-                      className="border border-gray-200 rounded-md"
+                      monthsShown={2}
+                      minDate={new Date()}
+                      excludeDates={bookedDates}
+                      className="w-full"
+                      dayClassName={date => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        
+                        if (date < today) {
+                          return 'text-gray-300 line-through'; // Past dates
+                        }
+                        
+                        const isBooked = bookedDates.some(bookedDate => 
+                          date.getFullYear() === bookedDate.getFullYear() &&
+                          date.getMonth() === bookedDate.getMonth() &&
+                          date.getDate() === bookedDate.getDate()
+                        );
+                        
+                        if (isBooked) {
+                          return 'text-red-500 line-through bg-red-100'; // Booked dates
+                        }
+                        
+                        return undefined; // Available dates
+                      }}
                     />
                   </div>
                 )}
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">Check-in</h3>
-                    <div className="relative">
-                      <input 
-                        type="date" 
-                        value={checkIn}
-                        min={new Date().toISOString().split('T')[0]}
-                        onChange={(e) => setCheckIn(e.target.value)}
-                        className="w-full py-2 pl-8 pr-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">Check-out</h3>
-                    <div className="relative">
-                      <input 
-                        type="date" 
-                        value={checkOut}
-                        min={checkIn || new Date().toISOString().split('T')[0]}
-                        onChange={(e) => setCheckOut(e.target.value)}
-                        className="w-full py-2 pl-8 pr-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    </div>
-                  </div>
-                </div>
               </div>
               
               <div className="mb-6">
-                <div className="flex justify-between">
-                  <label className="block text-lg font-semibold mb-1">Guests</label>
-                  <span className="text-xs text-gray-500 mt-1">(Children count as 1 guest)</span>
-                </div>
-                <div className="flex">
-                  <button 
-                    onClick={() => setGuests(Math.max(1, guests - 1))}
-                    className="px-3 py-1 bg-gray-100 border border-gray-300 rounded-l-md"
-                    disabled={guests <= 1}
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="number" 
-                    value={guests}
-                    min="1"
-                    max={venue?.maxGuests || 1}
-                    onChange={(e) => setGuests(parseInt(e.target.value) || 1)}
-                    className="w-14 text-center py-1 border-t border-b border-gray-300 focus:outline-none"
-                  />
-                  <button 
-                    onClick={() => setGuests(Math.min(venue?.maxGuests || 10, guests + 1))}
-                    className="px-3 py-1 bg-gray-100 border border-gray-300 rounded-r-md"
-                    disabled={guests >= (venue?.maxGuests || 10)}
-                  >
-                    +
-                  </button>
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Guests</label>
+                <select
+                  value={guests}
+                  onChange={(e) => setGuests(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-custom-blue"
+                >
+                  {[...Array(venue.maxGuests)].map((_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1} {i === 0 ? 'Guest' : 'Guests'}
+                    </option>
+                  ))}
+                </select>
               </div>
               
-              <button 
-                onClick={handleBookNow} 
-                className="w-full bg-custom-blue text-white py-3 px-6 rounded-md hover:bg-purple-700 transition-colors text-center font-medium"
+              {checkIn && checkOut && (
+                <div className="mb-6">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-700">Price per night</span>
+                    <span>{formatPrice(venue.price)}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-700">Nights</span>
+                    <span>{nights}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t">
+                    <span className="font-bold text-gray-900">Total</span>
+                    <span className="font-bold text-custom-orange">{formatPrice(venue.price * nights)}</span>
+                  </div>
+                </div>
+              )}
+              
+              <button
+                onClick={handleReservation}
+                disabled={!canReserve()}
+                className={`w-full py-3 px-4 rounded-md text-white bg-custom-orange font-medium ${!canReserve() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-orange-600'}`}
               >
-                BOOK NOW
+                Reserve
               </button>
               
-              <div className="flex justify-between items-center mt-4 text-sm">
-                <span>{formatPrice(venue?.price || 0)} x {nights} nights</span>
-                <span>{formatPrice((venue?.price || 0) * nights)}</span>
-              </div>
-              
-              <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200 font-semibold">
-                <span>Total</span>
-                <span>{formatPrice(getTotalPrice())}</span>
-              </div>
+              {!canReserve() && (
+                <div className="mt-2 text-sm text-orange-600 flex items-start">
+                  <Info className="w-4 h-4 mr-1 flex-shrink-0 mt-0.5" />
+                  <span>Please select check-in and check-out dates before reserving.</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-custom-blue bg-opacity-10 rounded-lg p-4">
+              <h4 className="font-semibold text-custom-blue mb-2">Important Information</h4>
+              <ul className="list-disc list-inside text-sm space-y-1 text-gray-700">
+                <li>Check-in time is 3:00 PM</li>
+                <li>Check-out time is 11:00 AM</li>
+                <li>No smoking policy inside venues</li>
+                <li>Quiet hours between 10:00 PM - 7:00 AM</li>
+              </ul>
             </div>
           </div>
+          
         </div>
       </div>
     </div>

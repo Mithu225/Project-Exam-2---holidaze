@@ -1,10 +1,10 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
-import { User, Mail, Edit, Plus, Home, X } from 'lucide-react';
+import { User, Mail, Edit, Plus, Home, X, Calendar, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { Venue } from '@/types/booking';
+import { Venue, Booking } from '@/types/booking';
 
 interface UserData {
   name: string;
@@ -24,6 +24,7 @@ interface UserData {
 export default function VenueManagerProfile() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [venueBookings, setVenueBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showAddVenueModal, setShowAddVenueModal] = useState(false);
@@ -54,6 +55,42 @@ export default function VenueManagerProfile() {
   const [createVenueLoading, setCreateVenueLoading] = useState(false);
   const router = useRouter();
 
+  // Define fetchVenueBookings using useCallback to avoid dependency issues
+  const fetchVenueBookings = useCallback(() => {
+    try {
+      const storedBookings = localStorage.getItem('bookings');
+      if (!storedBookings) {
+        return;
+      }
+      
+      const allBookings = JSON.parse(storedBookings) as Booking[];
+      
+      // Get all venue IDs owned by this manager
+      const managerVenueIds = venues.map(venue => venue.id);
+      
+      // Filter bookings to only those for venues owned by this manager
+      const relevantBookings = allBookings.filter(booking => {
+        return managerVenueIds.includes(booking.venue.id);
+      });
+      
+      // Sort bookings by date (most recent first)
+      relevantBookings.sort((a, b) => {
+        return new Date(b.dateFrom).getTime() - new Date(a.dateFrom).getTime();
+      });
+      
+      setVenueBookings(relevantBookings);
+    } catch (error) {
+      console.error('Error fetching venue bookings:', error);
+    }
+  }, [venues]);
+
+  // Load bookings for the manager's venues when venues are loaded
+  useEffect(() => {
+    if (venues.length > 0) {
+      fetchVenueBookings();
+    }
+  }, [venues, fetchVenueBookings]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -74,6 +111,7 @@ export default function VenueManagerProfile() {
     
     fetchData();
   }, [router]);
+  
   
   const fetchManagerVenues = async () => {
     try {
@@ -233,7 +271,27 @@ export default function VenueManagerProfile() {
     }));
   };
   
-  // Image validation is now handled directly in the form submission
+  const handleDeleteVenue = (venueId: string) => {
+    // Confirm before deleting
+    if (!confirm('Are you sure you want to delete this venue?')) {
+      return;
+    }
+    
+    try {
+      // Filter out the venue to delete
+      const updatedVenues = venues.filter(venue => venue.id !== venueId);
+      
+      // Update state and localStorage
+      setVenues(updatedVenues);
+      localStorage.setItem('userVenues', JSON.stringify(updatedVenues));
+      
+      // Show a success message
+      alert('Venue deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting venue:', error);
+      alert('Failed to delete venue. Please try again.');
+    }
+  };
   
   const handleCreateVenue = (e: React.FormEvent) => {
     e.preventDefault();
@@ -244,52 +302,50 @@ export default function VenueManagerProfile() {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       
       // Create a new venue that matches the required interface structure
-      const newVenue: Venue = {
+       const newVenue: Venue = {
         id: `temp-${Date.now()}`,
         name: venueFormData.title,
         description: venueFormData.description,
+        media: [
+          {
+            url: venueFormData.imageUrl || '/asset/placeholder-venue.jpg',
+            alt: venueFormData.title
+          }
+        ],
         price: Number(venueFormData.price),
         maxGuests: Number(venueFormData.maxGuests),
         rating: venueFormData.rating,
+        location: {
+          address: venueFormData.address,
+          city: venueFormData.city,
+          country: venueFormData.country,
+          continent: 'Unknown', // Default value
+          lat: 0, // Default value
+          lng: 0  // Default value
+        },
         meta: {
           wifi: venueFormData.amenities.wifi,
           parking: venueFormData.amenities.parking,
           breakfast: venueFormData.amenities.breakfast,
           pets: venueFormData.amenities.pets
         },
-        location: {
-          address: venueFormData.address || 'No address provided',
-          city: venueFormData.city || 'No city provided',
-          country: venueFormData.country || 'No country provided',
-          continent: 'Europe', // Default to Europe
-          lat: 0,
-          lng: 0
-          // Note: zip/postCode is stored in the address field in our UI
-        },
-        media: venueFormData.imageUrl ? [{
-          url: venueFormData.imageUrl,
-          alt: `Image of ${venueFormData.title}`
-        }] : []
+        owner: {
+          name: user.name || 'Venue Manager',
+          email: user.email || 'manager@holidaze.com',
+          avatar: user.avatar?.url
+        }
       };
+    
+      // Owner information already added to the venue object
       
-      // Add owner information separately to avoid TypeScript errors
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (newVenue as any).owner = user ? {
-        name: user.name || 'Current User',
-        email: user.email || ''
-      } : {
-        name: 'Current User',
-        email: ''
-      };
       
-      // Add the new venue to the venues list
       const updatedVenues = [newVenue, ...venues];
       setVenues(updatedVenues);
       
-      // Save to localStorage so it persists across page reloads
+ 
       localStorage.setItem('userVenues', JSON.stringify(updatedVenues));
       
-      // Reset form and close modal
+  
       setVenueFormData({
         title: '',
         description: '',
@@ -325,34 +381,33 @@ export default function VenueManagerProfile() {
     
     if (!userData) return;
     
-    // Create updated user data with form values
+
     const updatedUserData = {
       ...userData,
       bio: formData.bio || userData.bio,
-      
-      // Update avatar if provided, otherwise keep existing
+    
       avatar: formData.avatarUrl && formData.avatarUrl.trim() ? {
         url: formData.avatarUrl.trim(),
         alt: 'Venue manager avatar'
       } : userData.avatar,
       
-      // Keep existing banner if any
+     
       banner: userData.banner,
       
-      // Ensure we keep venue manager status
+     
       venueManager: true
     };
     
     console.log('Updated user data:', updatedUserData);
     
-    // Update local storage (same as GuestProfile does)
+   
     localStorage.setItem('user', JSON.stringify(updatedUserData));
     
-    // Update component state
+
     setUserData(updatedUserData);
     setShowEditForm(false);
     
-    // Notify user
+
     alert('Profile updated successfully!');
   };
 
@@ -374,10 +429,10 @@ export default function VenueManagerProfile() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Profile Header with Avatar */}
+    
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
         <div className="flex items-center">
-          {/* Avatar */}
+       
           <div className="w-16 h-16 mr-4 rounded-full overflow-hidden bg-white border-2 border-gray-200">
             {userData.avatar ? (
               <Image 
@@ -394,7 +449,7 @@ export default function VenueManagerProfile() {
             )}
           </div>
           
-          {/* User Info */}
+     
           <div>
             <div className="flex items-center">
               <h1 className="text-2xl font-bold text-custom-blue">{userData.name}</h1>
@@ -433,7 +488,7 @@ export default function VenueManagerProfile() {
         </div>
       </div>
 
-      {/* Add Venue Modal */}
+  
       {showAddVenueModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
@@ -449,7 +504,7 @@ export default function VenueManagerProfile() {
               </div>
               
               <form onSubmit={handleCreateVenue}>
-                {/* Title */}
+            
                 <div className="mb-4 relative">
                   <input
                     type="text"
@@ -465,7 +520,7 @@ export default function VenueManagerProfile() {
                     onClick={() => handleClearInput('title')} />
                 </div>
                 
-                {/* Description */}
+        
                 <div className="mb-4 relative">
                   <textarea
                     id="description"
@@ -480,8 +535,7 @@ export default function VenueManagerProfile() {
                   <X className="absolute right-3 top-8 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
                     onClick={() => handleClearInput('description')} />
                 </div>
-                
-                {/* Image URL */}
+        
                 <div className="mb-4 flex gap-2">
                   <div className="flex-grow relative">
                     <input
@@ -498,8 +552,7 @@ export default function VenueManagerProfile() {
                   </div>
                 
                 </div>
-                
-                {/* Price and Max Guests */}
+  
                 <div className="mb-4 grid grid-cols-2 gap-4">
                   <div className="relative">
                     <input
@@ -533,7 +586,7 @@ export default function VenueManagerProfile() {
                   </div>
                 </div>
                 
-                {/* Amenities */}
+      
                 <div className="mb-6">
                   <p className="font-medium mb-2">[x] This Venue offers</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -579,8 +632,7 @@ export default function VenueManagerProfile() {
                     </label>
                   </div>
                 </div>
-                
-                {/* Location */}
+         
                 <div className="mb-6">
                   <p className="font-medium mb-2 text-purple-700">LOCATION</p>
                   <div className="space-y-3">
@@ -639,7 +691,7 @@ export default function VenueManagerProfile() {
                   </div>
                 </div>
                 
-                {/* Rating */}
+           
                 <div className="mb-6">
                   <p className="font-medium mb-2">[x] Select your rating for the venue</p>
                   <div className="flex space-x-8">
@@ -659,7 +711,6 @@ export default function VenueManagerProfile() {
                   </div>
                 </div>
                 
-                {/* Submit Button */}
                 <div className="mt-6">
                   <button
                     type="submit"
@@ -674,8 +725,7 @@ export default function VenueManagerProfile() {
           </div>
         </div>
       )}
-      
-      {/* Edit Profile Form */}
+    
       {showEditForm && (
         <div className="mt-8 p-6 bg-white rounded-lg shadow-md">
           <div className="flex justify-between items-center mb-4">
@@ -741,7 +791,7 @@ export default function VenueManagerProfile() {
         </div>
       )}
       
-      {/* My Venues Section */}
+   
       <div className="mt-8">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">My Venues</h2>
         
@@ -786,10 +836,15 @@ export default function VenueManagerProfile() {
                     </div>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <Link href={`/venue/${venue.id}`} className="text-center py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm text-gray-700 transition-colors">
-                      View
-                    </Link>
-                    <Link href={`/holidaze/venues/${venue.id}/edit`} className="text-center py-1.5 bg-custom-blue hover:bg-blue-700 rounded text-sm text-white transition-colors">
+                    <button
+                      onClick={() => handleDeleteVenue(venue.id)}
+                      className="flex items-center justify-center py-1.5 bg-red-100 hover:bg-red-200 rounded text-sm text-red-700 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      Delete
+                    </button>
+                    <Link href={`/holidaze/venues/${venue.id}/edit`} className="flex items-center justify-center py-1.5 bg-custom-blue hover:bg-blue-700 rounded text-sm text-white transition-colors">
+                      <Edit className="w-3 h-3 mr-1" />
                       Edit
                     </Link>
                   </div>
@@ -800,13 +855,48 @@ export default function VenueManagerProfile() {
         )}
       </div>
 
-      {/* Bookings for My Venues */}
+  
       <div className="mt-12">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">Upcoming Bookings for My Venues</h2>
-        {/* This would require an additional API call to get bookings for the manager's venues */}
-        <div className="text-center py-8 bg-gray-50 rounded-lg">
-          <p className="text-gray-500">Bookings for your venues will appear here.</p>
-        </div>
+        
+        {venueBookings.length === 0 ? (
+          <div className="text-center py-8 bg-gray-50 rounded-lg">
+            <p className="text-gray-500">No bookings for your venues yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {venueBookings.map((booking) => (
+              <div key={booking.id} className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-semibold text-custom-blue">{booking.venue.name}</h3>
+                    <div className="flex items-center text-sm text-gray-600 mt-1">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      <span>
+                        {new Date(booking.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(booking.dateTo).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <p className="text-sm mt-2">
+                      <span className="font-medium">Guest:</span> {booking.userId}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium">Guests:</span> {booking.guests}
+                    </p>
+                  </div>
+                  
+                  <div className="text-right">
+                    <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                      Confirmed
+                    </span>
+                    <p className="text-sm mt-2 font-medium">
+                      Booked on {new Date(booking.created).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

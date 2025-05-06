@@ -74,6 +74,46 @@ export default function EditVenuePage() {
       setError(null);
       
       try {
+        // First check if this is a locally created venue (starts with 'temp-')
+        if (typeof id === 'string' && id.startsWith('temp-')) {
+          // Get user venues from localStorage
+          const savedVenues = localStorage.getItem('userVenues');
+          if (savedVenues) {
+            const userVenues = JSON.parse(savedVenues);
+            const venue = userVenues.find((v: any) => v.id === id);
+            
+            if (venue) {
+              // Convert local venue format to form data format
+              setFormData({
+                name: venue.name,
+                description: venue.description,
+                media: venue.media || [{ url: '', alt: '' }],
+                price: venue.price,
+                maxGuests: venue.maxGuests,
+                rating: venue.rating,
+                meta: {
+                  wifi: venue.meta?.wifi || false,
+                  parking: venue.meta?.parking || false,
+                  breakfast: venue.meta?.breakfast || false,
+                  pets: venue.meta?.pets || false,
+                },
+                location: {
+                  address: venue.location?.address || '',
+                  city: venue.location?.city || '',
+                  zip: venue.location?.zip || '',
+                  country: venue.location?.country || '',
+                  continent: venue.location?.continent || '',
+                  lat: venue.location?.lat || 0,
+                  lng: venue.location?.lng || 0,
+                },
+              });
+              setLoading(false);
+              return;
+            }
+          }
+        }
+        
+        // If not a temp venue or not found in localStorage, try the API
         const token = localStorage.getItem('accessToken');
         if (!token) {
           router.push('/login');
@@ -164,6 +204,43 @@ export default function EditVenuePage() {
     setSuccess(false);
     
     try {
+      // Check if this is a locally created venue (starts with 'temp-')
+      if (typeof id === 'string' && id.startsWith('temp-')) {
+        // Update venue in localStorage
+        const savedVenues = localStorage.getItem('userVenues');
+        if (savedVenues) {
+          const userVenues = JSON.parse(savedVenues);
+          const updatedVenues = userVenues.map((venue: any) => {
+            if (venue.id === id) {
+              // Convert form data back to venue format
+              return {
+                ...venue,
+                name: formData.name,
+                description: formData.description,
+                media: formData.media,
+                price: formData.price,
+                maxGuests: formData.maxGuests,
+                rating: formData.rating,
+                meta: formData.meta,
+                location: formData.location,
+                updated: new Date().toISOString()
+              };
+            }
+            return venue;
+          });
+          
+          localStorage.setItem('userVenues', JSON.stringify(updatedVenues));
+          setSuccess(true);
+          
+          // Redirect back to profile page after a short delay
+          setTimeout(() => {
+            router.push('/profile');
+          }, 1500);
+          return;
+        }
+      }
+      
+      // If not a temp venue, update via API
       const token = localStorage.getItem('accessToken');
       if (!token) {
         router.push('/login');
@@ -176,7 +253,7 @@ export default function EditVenuePage() {
         media: formData.media.filter(m => m.url.trim() !== '')
       };
       
-      // Use the PUT endpoint to update the venue
+      // Make API call to update venue
       const response = await fetch(`https://v2.api.noroff.dev/holidaze/venues/${id}`, {
         method: 'PUT',
         headers: {
@@ -191,17 +268,15 @@ export default function EditVenuePage() {
         throw new Error(errorData.message || `Failed to update venue (Status: ${response.status})`);
       }
       
-      const data: ApiResponse = await response.json();
-      console.log('Venue updated successfully:', data);
       setSuccess(true);
       
-      // Redirect after a short delay
+      // Redirect back to profile page after a short delay
       setTimeout(() => {
-        router.push('/holidaze/venues');
-      }, 2000);
+        router.push('/profile');
+      }, 1500);
     } catch (error) {
       console.error('Error updating venue:', error);
-      setError(error instanceof Error ? error.message : 'Failed to update venue. Please try again.');
+      setError('Failed to update venue. Please try again.');
     } finally {
       setSubmitting(false);
     }
