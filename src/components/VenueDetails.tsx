@@ -1,5 +1,17 @@
 "use client";
 import Image from "next/image";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import {
+  format,
+  startOfDay,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isBefore,
+  addMonths,
+} from "date-fns";
+import { useVenue } from "@/hooks/useVenue";
 import {
   Star,
   Wifi,
@@ -11,18 +23,22 @@ import {
   Info,
   RefreshCw,
   Edit,
+  ChevronLeft,
+  ChevronRight,
+  ArrowLeft,
 } from "lucide-react";
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import {
-  format,
-  startOfDay,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
-  isBefore,
-} from "date-fns";
-import { useVenue } from "@/hooks/useVenue";
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 interface VenueDetailsProps {
   venueId: string;
@@ -65,21 +81,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
 
     return dates;
   }, []);
-
-  const renderStars = (rating: number) => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <Star
-          key={i}
-          className={`h-5 w-5 ${
-            i <= rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
-          }`}
-        />
-      );
-    }
-    return stars;
-  };
 
   const calculateNights = useCallback(() => {
     if (!checkIn || !checkOut) return 0;
@@ -177,15 +178,11 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
   };
 
   const prevMonth = () => {
-    const newMonth = new Date(currentMonth);
-    newMonth.setMonth(currentMonth.getMonth() - 1);
-    setCurrentMonth(newMonth);
+    setCurrentMonth(addMonths(currentMonth, -1));
   };
 
   const nextMonth = () => {
-    const newMonth = new Date(currentMonth);
-    newMonth.setMonth(currentMonth.getMonth() + 1);
-    setCurrentMonth(newMonth);
+    setCurrentMonth(addMonths(currentMonth, 1));
   };
 
   const canReserve = () => {
@@ -208,20 +205,11 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     }
 
     try {
-      console.log("Creating booking with data:", {
-        checkIn,
-        checkOut,
-        guests,
-        venueId: venue.id,
-      });
-
       const result = await makeBooking(checkIn, checkOut, guests);
 
       if (!result.success) {
         throw new Error(result.error);
       }
-
-      console.log("Booking created successfully:", result.data);
 
       // Clear form
       setCheckIn("");
@@ -280,229 +268,119 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     // Create an array of all days to display in the calendar
     const allDays = [...prevMonthDays, ...days, ...nextMonthDays];
 
-    // Navigation functions for year selection
-    const prevYear = () => {
-      const newMonth = new Date(currentMonth);
-      newMonth.setFullYear(currentMonth.getFullYear() - 1);
-      setCurrentMonth(newMonth);
-    };
-
-    const nextYear = () => {
-      const newMonth = new Date(currentMonth);
-      newMonth.setFullYear(currentMonth.getFullYear() + 1);
-      setCurrentMonth(newMonth);
-    };
-
-    const goToToday = () => {
-      setCurrentMonth(new Date());
-    };
-
     return (
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center">
-            <button
-              onClick={prevYear}
-              className="p-1 hover:bg-gray-100 rounded-full mr-1"
-              aria-label="Previous year"
-              title="Previous year"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414z"
-                  clipRule="evenodd"
-                />
-                <path
-                  fillRule="evenodd"
-                  d="M5.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L1.414 10l4.293 4.293a1 1 0 010 1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-            <button
+      <Card className="w-full">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center">
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={prevMonth}
-              className="p-1 hover:bg-gray-100 rounded-full"
               aria-label="Previous month"
-              title="Previous month"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-          </div>
-
-          <h3 className="text-lg font-semibold text-gray-800">
-            {format(currentMonth, "MMMM yyyy")}
-          </h3>
-
-          <div className="flex items-center">
-            <button
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <CardTitle className="text-center text-base">
+              {format(currentMonth, "MMMM yyyy")}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={nextMonth}
-              className="p-1 hover:bg-gray-100 rounded-full"
               aria-label="Next month"
-              title="Next month"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={nextYear}
-              className="p-1 hover:bg-gray-100 rounded-full ml-1"
-              aria-label="Next year"
-              title="Next year"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z"
-                  clipRule="evenodd"
-                />
-                <path
-                  fillRule="evenodd"
-                  d="M4.293 15.707a1 1 0 010-1.414L8.586 10 4.293 5.707a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div
-              key={day}
-              className="text-center text-sm font-medium text-gray-500 py-2"
-            >
-              {day}
-            </div>
-          ))}
-
-          {/* All days in the calendar grid */}
-          {allDays.map((day) => {
-            const dateString = format(day, "yyyy-MM-dd");
-            const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
-            const isBooked = bookedDates.includes(dateString);
-            const isPastDate = isBefore(day, startOfDay(new Date()));
-
-            // Check if this date is explicitly selected (check-in or check-out)
-            const isSelected = selectedDates.includes(dateString);
-
-            // Check if this date is in the selected range (between check-in and check-out)
-            const isInRange = isDateInRange(day);
-
-            // A date is disabled if it's in the past or it's booked
-            const isDisabled = isPastDate || isBooked;
-
-            // Determine the appropriate CSS classes based on the date's state
-            let dayClasses = "relative p-2 text-center ";
-
-            if (!isCurrentMonth) {
-              // For days from adjacent months
-              if (isDisabled) {
-                dayClasses += "text-gray-300 opacity-40 cursor-not-allowed";
-              } else {
-                dayClasses +=
-                  "text-gray-400 opacity-50 hover:bg-gray-50 cursor-pointer";
-              }
-            } else if (isDisabled) {
-              // All disabled dates (past or booked) have the same appearance
-              dayClasses += "text-gray-300 cursor-not-allowed";
-            } else if (isSelected) {
-              dayClasses += "text-white bg-custom-blue cursor-pointer";
-            } else if (isInRange) {
-              dayClasses +=
-                "text-custom-blue bg-custom-blue bg-opacity-20 cursor-pointer hover:bg-opacity-30";
-            } else {
-              dayClasses += "text-gray-700 cursor-pointer hover:bg-gray-100";
-            }
-
-            return (
+        </CardHeader>
+        <CardContent className="p-2">
+          <div className="grid grid-cols-7 gap-1">
+            {["S", "M", "T", "W", "T", "F", "S"].map((day) => (
               <div
-                key={dateString}
-                className={dayClasses}
-                onClick={() => {
-                  // Don't allow interaction with disabled dates
-                  if (isDisabled) return;
-
-                  if (!isCurrentMonth) {
-                    setCurrentMonth(
-                      new Date(day.getFullYear(), day.getMonth(), 1)
-                    );
-                    setTimeout(() => handleDateClick(day), 10);
-                  } else {
-                    handleDateClick(day);
-                  }
-                }}
+                key={day}
+                className="text-center text-xs font-medium text-muted-foreground p-2"
               >
-                {format(day, "d")}
+                {day}
               </div>
-            );
-          })}
-        </div>
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-gray-300 cursor-not-allowed"></div>
-            <span className="text-sm text-gray-600">
-              Unavailable (past or booked)
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-custom-blue"></div>
-            <span className="text-sm text-gray-600">
-              Check-in/Check-out dates
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-custom-blue bg-opacity-20"></div>
-            <span className="text-sm text-gray-600">
-              Dates in your selected range
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-gray-400 opacity-50"></div>
-            <span className="text-sm text-gray-600">
-              Adjacent month (clickable)
-            </span>
-          </div>
-        </div>
+            ))}
 
-        <div className="mt-4 text-center">
-          <button
-            onClick={goToToday}
-            className="text-sm text-custom-blue hover:underline"
-          >
-            Go to Current Month
-          </button>
-        </div>
+            {/* Calendar days */}
+            {allDays.map((day) => {
+              const dateString = format(day, "yyyy-MM-dd");
+              const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+              const isBooked = bookedDates.includes(dateString);
+              const isPastDate = isBefore(day, startOfDay(new Date()));
+              const isSelected = selectedDates.includes(dateString);
+              const isInRange = isDateInRange(day);
+              const isDisabled = isPastDate || isBooked;
+
+              return (
+                <div
+                  key={dateString}
+                  className={cn(
+                    "text-center rounded-md p-2 text-sm cursor-pointer",
+                    !isCurrentMonth && "text-muted-foreground/50",
+                    isDisabled && "cursor-not-allowed opacity-50 line-through",
+                    isSelected &&
+                      !isDisabled &&
+                      "bg-custom-blue text-white font-medium",
+                    isInRange &&
+                      !isSelected &&
+                      !isDisabled &&
+                      "bg-custom-blue/20 text-custom-blue",
+                    !isSelected && !isInRange && !isDisabled && "hover:bg-muted"
+                  )}
+                  onClick={() => {
+                    if (!isDisabled) {
+                      handleDateClick(day);
+                    }
+                  }}
+                >
+                  {format(day, "d")}
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-col space-y-2 text-xs pt-2">
+          <div className="grid grid-cols-2 gap-2 w-full">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-custom-blue rounded-sm"></div>
+              <span>Selected</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-custom-blue/20 rounded-sm"></div>
+              <span>Range</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-muted rounded-sm"></div>
+              <span>Available</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 opacity-50 line-through rounded-sm border"></div>
+              <span>Unavailable</span>
+            </div>
+          </div>
+        </CardFooter>
+      </Card>
+    );
+  };
+
+  // Adds stars rendering with Shadcn styling
+  const renderStars = (rating: number) => {
+    return (
+      <div className="flex">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={cn(
+              "h-4 w-4",
+              star <= rating
+                ? "text-yellow-400 fill-yellow-400"
+                : "text-gray-300"
+            )}
+          />
+        ))}
       </div>
     );
   };
@@ -529,7 +407,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     }
   }, [venue]);
 
-  // Render loading, error or content
+  // Loading state
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8 flex justify-center items-center h-64">
@@ -538,36 +416,43 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     );
   }
 
+  // Error state
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          <p className="font-medium">Error loading venue</p>
-          <p>{error}</p>
-          <button
+        <Alert variant="destructive">
+          <AlertTitle>Error loading venue</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+          <Button
             onClick={refreshVenue}
-            className="mt-4 flex items-center bg-custom-blue text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+            variant="outline"
+            className="mt-4 flex items-center gap-2"
           >
-            <RefreshCw size={16} className="mr-2" />
+            <RefreshCw size={16} />
             Try Again
-          </button>
-        </div>
+          </Button>
+        </Alert>
       </div>
     );
   }
 
+  // Not found state
   if (!venue) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
-          <p>Venue not found. It may have been removed.</p>
-          <button
+        <Alert>
+          <AlertTitle>Venue not found</AlertTitle>
+          <AlertDescription>
+            The venue you are looking for may have been removed.
+          </AlertDescription>
+          <Button
             onClick={() => router.push("/")}
-            className="mt-4 bg-custom-blue text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+            variant="customBlue"
+            className="mt-4"
           >
             Return to Venues
-          </button>
-        </div>
+          </Button>
+        </Alert>
       </div>
     );
   }
@@ -579,153 +464,208 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-4">
-        <button
+      {/* Top navigation bar */}
+      <div className="flex justify-between items-center mb-6">
+        <Button
           onClick={() => router.back()}
-          className="text-custom-blue hover:underline flex items-center"
+          variant="ghost"
+          className="flex items-center gap-2 text-custom-blue"
         >
-          &larr; Back
-        </button>
+          <ArrowLeft size={16} />
+          Back
+        </Button>
 
-        <button
+        <Button
           onClick={refreshVenue}
-          className={`flex items-center text-custom-blue hover:text-blue-700 ${
+          variant="ghost"
+          className={`flex items-center text-custom-blue gap-2 ${
             isRefreshing ? "opacity-50" : ""
           }`}
           disabled={isRefreshing}
         >
-          <RefreshCw
-            size={16}
-            className={`mr-1 ${isRefreshing ? "animate-spin" : ""}`}
-          />
+          <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
           {isRefreshing ? "Refreshing..." : "Refresh"}
-        </button>
+        </Button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div className="w-full relative h-[400px] mb-6">
-          <Image
-            src={venueImage.url}
-            alt={venueImage.alt}
-            fill
-            className="object-cover"
-          />
-        </div>
-
-        <div className="px-6 pb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl font-bold text-custom-blue">
-              {venue.name}
-            </h1>
-            <div className="flex">{renderStars(venue.rating || 0)}</div>
-          </div>
-          <div className="text-custom-orange text-lg font-semibold">
-            Price {formatPrice(venue.price)} per night
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Venue details - Left and middle sections (2/3 width) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Main image */}
+          <div className="relative aspect-[16/9] overflow-hidden rounded-lg">
+            <Image
+              src={venueImage.url}
+              alt={venueImage.alt}
+              fill
+              className="object-cover"
+            />
           </div>
 
+          {/* Venue name and rating */}
+          <div>
+            <div className="flex items-start justify-between mb-2">
+              <h1 className="text-3xl font-bold text-custom-blue">
+                {venue.name}
+              </h1>
+              <div className="flex items-center">
+                {renderStars(venue.rating || 0)}
+                <span className="ml-2 text-sm text-muted-foreground">
+                  {venue.rating.toFixed(1)}
+                </span>
+              </div>
+            </div>
+            <p className="text-custom-orange text-lg font-semibold">
+              {formatPrice(venue.price)} per night
+            </p>
+          </div>
+
+          {/* Edit button for owners */}
           {isOwner && (
-            <div className="mb-6">
-              <button
+            <div>
+              <Button
                 onClick={() => router.push(`/venues/edit/${venue.id}`)}
-                className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                variant="outline"
+                className="flex items-center gap-2"
               >
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Venue
-              </button>
+                <Edit className="h-4 w-4" />
+                Edit This Venue
+              </Button>
             </div>
           )}
 
-          <div className="flex items-center mb-6">
-            <div className="flex items-center">
-              <Users className="w-5 h-5 mr-2" />
-              <span>{venue.maxGuests} Guests</span>
-            </div>
-          </div>
+          {/* Description section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>About This Venue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>{venue.description}</p>
+            </CardContent>
+          </Card>
 
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-2">Facilities at Venue</h3>
-            <div className="flex flex-col gap-2">
-              {venue.meta?.wifi && (
-                <span className="inline-flex items-center text-custom-blue">
-                  <span className="inline-flex justify-center items-center w-8 h-8 bg-purple-100 rounded-full mr-2">
-                    <Wifi className="w-4 h-4" />
-                  </span>
-                  WiFi
-                </span>
-              )}
-              {venue.meta?.parking && (
-                <span className="inline-flex items-center text-custom-blue">
-                  <span className="inline-flex justify-center items-center w-8 h-8 bg-purple-100 rounded-full mr-2">
-                    <Car className="w-4 h-4" />
-                  </span>
-                  Parking
-                </span>
-              )}
-              {venue.meta?.breakfast && (
-                <span className="inline-flex items-center text-custom-blue">
-                  <span className="inline-flex justify-center items-center w-8 h-8 bg-purple-100 rounded-full mr-2">
-                    <Coffee className="w-4 h-4" />
-                  </span>
-                  Breakfast
-                </span>
-              )}
-              {venue.meta?.pets && (
-                <span className="inline-flex items-center text-custom-blue">
-                  <span className="inline-flex justify-center items-center w-8 h-8 bg-purple-100 rounded-full mr-2">
-                    <PawPrint className="w-4 h-4" />
-                  </span>
-                  Pets allowed
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-2">Location</h3>
-            <div className="mb-2 flex items-start">
-              <div className="font-medium w-20">Address:</div>
-              <div>{venue.location?.address || "Address not provided"}</div>
-            </div>
-            <div className="mb-2 flex items-start">
-              <div className="font-medium w-20">City:</div>
-              <div>{venue.location?.city || "City not provided"}</div>
-            </div>
-            <div className="mb-2 flex items-start">
-              <div className="font-medium w-20">Country:</div>
-              <div>{venue.location?.country || "Country not provided"}</div>
-            </div>
-            {venue.location?.zip && (
-              <div className="mb-2 flex items-start">
-                <div className="font-medium w-20">Zip:</div>
-                <div>{venue.location.zip}</div>
+          {/* Facilities section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Facilities</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {venue.meta?.wifi && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
+                    <div className="flex justify-center items-center w-8 h-8 bg-custom-blue/10 rounded-full">
+                      <Wifi className="w-4 h-4 text-custom-blue" />
+                    </div>
+                    <span className="font-medium">WiFi</span>
+                  </div>
+                )}
+                {venue.meta?.parking && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
+                    <div className="flex justify-center items-center w-8 h-8 bg-custom-blue/10 rounded-full">
+                      <Car className="w-4 h-4 text-custom-blue" />
+                    </div>
+                    <span className="font-medium">Parking</span>
+                  </div>
+                )}
+                {venue.meta?.breakfast && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
+                    <div className="flex justify-center items-center w-8 h-8 bg-custom-blue/10 rounded-full">
+                      <Coffee className="w-4 h-4 text-custom-blue" />
+                    </div>
+                    <span className="font-medium">Breakfast</span>
+                  </div>
+                )}
+                {venue.meta?.pets && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
+                    <div className="flex justify-center items-center w-8 h-8 bg-custom-blue/10 rounded-full">
+                      <PawPrint className="w-4 h-4 text-custom-blue" />
+                    </div>
+                    <span className="font-medium">Pets</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
+                  <div className="flex justify-center items-center w-8 h-8 bg-custom-blue/10 rounded-full">
+                    <Users className="w-4 h-4 text-custom-blue" />
+                  </div>
+                  <span className="font-medium">{venue.maxGuests} Guests</span>
+                </div>
               </div>
-            )}
-          </div>
+            </CardContent>
+          </Card>
+
+          {/* Location section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Location</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                {venue.location?.address && (
+                  <div className="flex flex-col">
+                    <dt className="text-sm font-medium text-muted-foreground">
+                      Address
+                    </dt>
+                    <dd>{venue.location.address}</dd>
+                  </div>
+                )}
+                {venue.location?.city && (
+                  <div className="flex flex-col">
+                    <dt className="text-sm font-medium text-muted-foreground">
+                      City
+                    </dt>
+                    <dd>{venue.location.city}</dd>
+                  </div>
+                )}
+                {venue.location?.country && (
+                  <div className="flex flex-col">
+                    <dt className="text-sm font-medium text-muted-foreground">
+                      Country
+                    </dt>
+                    <dd>{venue.location.country}</dd>
+                  </div>
+                )}
+                {venue.location?.zip && (
+                  <div className="flex flex-col">
+                    <dt className="text-sm font-medium text-muted-foreground">
+                      Zip Code
+                    </dt>
+                    <dd>{venue.location.zip}</dd>
+                  </div>
+                )}
+              </dl>
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-6 pb-6">
-          <div>
-            <div className="bg-gray-50 p-6 rounded-lg shadow-md mb-6">
-              <h3 className="text-xl font-semibold mb-4">Reserve This Venue</h3>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Check-in / Check-out
-                </label>
-                <button
+        {/* Booking section - Right column (1/3 width) */}
+        <div className="lg:self-start lg:sticky lg:top-24">
+          <Card className="shadow-md">
+            <CardHeader className="pb-4">
+              <CardTitle>Reserve This Venue</CardTitle>
+              <CardDescription className="flex items-center">
+                <span className="font-semibold text-lg text-custom-orange mr-2">
+                  {formatPrice(venue.price)}
+                </span>
+                <span className="text-muted-foreground">per night</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Date Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="dates">Check-in / Check-out</Label>
+                <Button
+                  id="dates"
+                  variant="outline"
                   onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-                  className="w-full flex items-center justify-between bg-white border border-gray-300 rounded-md px-3 py-2 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-custom-blue"
+                  className="w-full justify-between h-auto py-3"
                 >
                   <div className="flex items-center">
-                    <Calendar className="h-5 w-5 text-gray-400 mr-2" />
+                    <Calendar className="h-4 w-4 text-muted-foreground mr-2" />
                     <span>
                       {checkIn && checkOut
                         ? (() => {
-                            // Ensure dates are displayed in chronological order
                             const startDate = new Date(checkIn);
                             const endDate = new Date(checkOut);
 
-                            // If dates are in wrong order, swap them for display
                             if (startDate <= endDate) {
                               return `${format(
                                 startDate,
@@ -741,23 +681,26 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
                         : "Select dates"}
                     </span>
                   </div>
-                </button>
+                  <ChevronRight
+                    className={`h-4 w-4 transition-transform ${
+                      isCalendarOpen ? "rotate-90" : ""
+                    }`}
+                  />
+                </Button>
 
                 {isCalendarOpen && (
-                  <div className="mt-2 bg-white rounded-md shadow-lg p-4 z-10">
-                    {renderCalendar()}
-                  </div>
+                  <div className="mt-2">{renderCalendar()}</div>
                 )}
               </div>
 
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Guests
-                </label>
+              {/* Guests selection */}
+              <div className="space-y-2">
+                <Label htmlFor="guests">Guests</Label>
                 <select
+                  id="guests"
                   value={guests}
                   onChange={(e) => setGuests(Number(e.target.value))}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-custom-blue"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   {[...Array(venue.maxGuests)].map((_, i) => (
                     <option key={i + 1} value={i + 1}>
@@ -767,59 +710,66 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
                 </select>
               </div>
 
+              {/* Price calculation */}
               {checkIn && checkOut && (
-                <div className="mb-6">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-700">Price per night</span>
-                    <span>{formatPrice(venue.price)}</span>
+                <div className="border-t border-border pt-4 mt-4">
+                  <div className="flex justify-between mb-2 text-sm">
+                    <span>
+                      {formatPrice(venue.price)} × {nights} nights
+                    </span>
+                    <span>{formatPrice(venue.price * nights)}</span>
                   </div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-700">Nights</span>
-                    <span>{nights}</span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t">
-                    <span className="font-bold text-gray-900">Total</span>
-                    <span className="font-bold text-custom-orange">
+                  <div className="border-t border-border pt-4 flex justify-between font-semibold">
+                    <span>Total</span>
+                    <span className="text-custom-orange">
                       {formatPrice(venue.price * nights)}
                     </span>
                   </div>
                 </div>
               )}
 
-              <button
+              {/* Reserve button */}
+              <Button
                 onClick={handleReservation}
                 disabled={!canReserve()}
-                className={`w-full py-3 px-4 rounded-md text-white bg-custom-orange font-medium ${
-                  !canReserve()
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-orange-600"
-                }`}
+                variant="customBlue"
+                className="w-full h-auto py-3 text-white mt-2"
               >
-                Reserve
-              </button>
+                {canReserve() ? "Reserve" : "Select dates to reserve"}
+              </Button>
 
               {!canReserve() && (
-                <div className="mt-2 text-sm text-orange-600 flex items-start">
-                  <Info className="w-4 h-4 mr-1 flex-shrink-0 mt-0.5" />
+                <div className="flex items-start text-xs text-amber-600 mt-2">
+                  <Info className="w-4 h-4 mr-1 flex-shrink-0 mt-0" />
                   <span>
-                    Please select check-in and check-out dates before reserving.
+                    Please select check-in and check-out dates to proceed with
+                    reservation.
                   </span>
                 </div>
               )}
-            </div>
-
-            <div className="bg-custom-blue bg-opacity-10 rounded-lg p-4">
-              <h4 className="font-semibold text-custom-blue mb-2">
-                Important Information
-              </h4>
-              <ul className="list-disc list-inside text-sm space-y-1 text-gray-700">
-                <li>Check-in time is 3:00 PM</li>
-                <li>Check-out time is 11:00 AM</li>
-                <li>No smoking policy inside venues</li>
-                <li>Quiet hours between 10:00 PM - 7:00 AM</li>
-              </ul>
-            </div>
-          </div>
+            </CardContent>
+            <CardFooter className="flex flex-col pt-0">
+              <div className="w-full p-3 bg-slate-50 rounded-md text-sm">
+                <h4 className="font-semibold text-sm mb-2">
+                  Important Information
+                </h4>
+                <ul className="space-y-1 text-muted-foreground">
+                  <li className="flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-muted-foreground inline-block"></span>
+                    Check-in time is 3:00 PM
+                  </li>
+                  <li className="flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-muted-foreground inline-block"></span>
+                    Check-out time is 11:00 AM
+                  </li>
+                  <li className="flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-muted-foreground inline-block"></span>
+                    No smoking inside the venue
+                  </li>
+                </ul>
+              </div>
+            </CardFooter>
+          </Card>
         </div>
       </div>
     </div>

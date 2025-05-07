@@ -190,3 +190,66 @@ export async function createBooking(bookingData: {
     };
   }
 }
+
+// Add this function after the fetchWithAuth function
+export async function createVenue(venueData: {
+  name: string;
+  description: string;
+  price: number;
+  maxGuests: number;
+  media?: {
+    url: string;
+    alt: string;
+  }[];
+  location: {
+    address?: string;
+    city?: string;
+    zip?: string;
+    country?: string;
+    continent?: string;
+    lat?: number;
+    lng?: number;
+  };
+  meta: {
+    wifi: boolean;
+    parking: boolean;
+    breakfast: boolean;
+    pets: boolean;
+  };
+}) {
+  try {
+    // Make API call to create venue
+    const response = await fetchWithAuth(
+      "https://v2.api.noroff.dev/holidaze/venues",
+      {
+        method: "POST",
+        body: JSON.stringify(venueData),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage =
+        errorData.errors?.[0]?.message ||
+        errorData.message ||
+        `Failed to create venue: ${response.status}`;
+      throw new Error(errorMessage);
+    }
+
+    const responseData = await response.json();
+
+    // Dispatch a custom event that other components can listen for
+    const venueCreatedEvent = new CustomEvent("venueCreated", {
+      detail: responseData.data,
+    });
+    window.dispatchEvent(venueCreatedEvent);
+
+    return { success: true, data: responseData.data };
+  } catch (error) {
+    console.error("Error creating venue:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create venue",
+    };
+  }
+}

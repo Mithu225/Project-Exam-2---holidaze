@@ -1,30 +1,46 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Venue } from "@/types/booking";
 import VenueCard from "@/components/VenueCard";
-
 export default function SearchResults() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const query = searchParams.get("q") || "";
-  
+
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState(query);
-  
 
+  // Handle new venue creation events
+  const handleVenueCreated = (event: CustomEvent<Venue>) => {
+    const newVenue = event.detail;
+
+    if (newVenue && newVenue.id) {
+      setVenues((prevVenues) => [newVenue, ...prevVenues]);
+    }
+  };
 
   useEffect(() => {
     const fetchVenues = async () => {
       try {
         setLoading(true);
-        const response = await fetch("https://v2.api.noroff.dev/holidaze/venues");
+
+        // Add timestamp for cache busting
+        const timestamp = Date.now();
+        const apiUrl = `https://v2.api.noroff.dev/holidaze/venues?_=${timestamp}`;
+
+        const response = await fetch(apiUrl, {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        });
+
         const result = await response.json();
-        
+
         if (result?.data) {
           setVenues(result.data);
         }
@@ -36,19 +52,32 @@ export default function SearchResults() {
     };
 
     fetchVenues();
+
+    // Listen for venue creation events
+    window.addEventListener(
+      "venueCreated",
+      handleVenueCreated as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "venueCreated",
+        handleVenueCreated as EventListener
+      );
+    };
   }, []);
 
- 
   const filteredVenues = venues.filter((venue) => {
     const searchLower = query.toLowerCase();
-    
-    if (!searchLower) return true;
-    
 
-    return (venue.name?.toLowerCase() || "").includes(searchLower) ||
+    if (!searchLower) return true;
+
+    return (
+      (venue.name?.toLowerCase() || "").includes(searchLower) ||
       (venue.location?.city?.toLowerCase() || "").includes(searchLower) ||
       (venue.location?.country?.toLowerCase() || "").includes(searchLower) ||
-      (venue.description?.toLowerCase() || "").includes(searchLower);
+      (venue.description?.toLowerCase() || "").includes(searchLower)
+    );
   });
 
   return (
@@ -58,10 +87,10 @@ export default function SearchResults() {
           Search Results
         </h1>
         <p className="text-gray-600 mb-4">
-          {filteredVenues.length} {filteredVenues.length === 1 ? "venue" : "venues"} found for &ldquo;{query}&rdquo;
+          {filteredVenues.length}{" "}
+          {filteredVenues.length === 1 ? "venue" : "venues"} found for &ldquo;
+          {query}&rdquo;
         </p>
-        
-      
 
         <div className="mb-4">
           <p className="text-sm text-gray-600">
@@ -76,8 +105,12 @@ export default function SearchResults() {
         </div>
       ) : filteredVenues.length === 0 ? (
         <div className="text-center py-10">
-          <p className="text-xl text-gray-500">No venues found matching your search.</p>
-          <p className="text-gray-400 mt-2">Try adjusting your search terms or filters.</p>
+          <p className="text-xl text-gray-500">
+            No venues found matching your search.
+          </p>
+          <p className="text-gray-400 mt-2">
+            Try adjusting your search terms or filters.
+          </p>
         </div>
       ) : (
         <div className="flex flex-col">
@@ -86,10 +119,10 @@ export default function SearchResults() {
               <VenueCard key={venue.id} venue={venue} />
             ))}
           </div>
-          
+
           <div className="flex justify-center pb-8">
-            <Link 
-              href="/" 
+            <Link
+              href="/"
               className="px-6 py-3 bg-white border border-custom-blue text-custom-blue rounded-md hover:bg-gray-50 transition-colors flex items-center gap-2"
             >
               Browse All Venues

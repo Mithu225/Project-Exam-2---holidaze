@@ -38,7 +38,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { fetchWithAuth } from "@/utils/api";
+import { fetchWithAuth, createVenue } from "@/utils/api";
 
 interface UserData {
   name: string;
@@ -364,27 +364,6 @@ export default function VenueManagerProfile() {
     });
   };
 
-  // Add Venue Form Handlers
-  const handleVenueInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    venueForm.setValue(name, value);
-  };
-
-  const handleClearInput = (fieldName: string) => {
-    venueForm.setValue(fieldName, "");
-  };
-
-  const handleAmenityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    venueForm.setValue(`meta.${name}`, checked);
-  };
-
-  const handleRatingChange = (value: number) => {
-    venueForm.setValue("rating", value);
-  };
-
   const handleDeleteVenue = async (venueId: string) => {
     // Confirm before deleting
     if (!confirm("Are you sure you want to delete this venue?")) {
@@ -470,28 +449,15 @@ export default function VenueManagerProfile() {
         media: validMedia,
       };
 
-      // Make API call to create venue
-      const response = await fetchWithAuth(
-        "https://v2.api.noroff.dev/holidaze/venues",
-        {
-          method: "POST",
-          body: JSON.stringify(venueData),
-        }
-      );
+      // Use the new createVenue function
+      const result = await createVenue(venueData);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage =
-          errorData.errors?.[0]?.message ||
-          errorData.message ||
-          `Failed to create venue: ${response.status}`;
-        throw new Error(errorMessage);
+      if (!result.success) {
+        throw new Error(result.error || "Failed to create venue");
       }
 
-      const responseData = await response.json();
-
       // Add the new venue to the list and refresh venues
-      setVenues((prevVenues) => [responseData.data, ...prevVenues]);
+      setVenues((prevVenues) => [result.data, ...prevVenues]);
 
       // Close the dialog and reset form
       setVenueDialogOpen(false);

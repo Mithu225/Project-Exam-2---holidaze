@@ -4,84 +4,111 @@ import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { Input } from "./ui/input";
 import { useRouter } from "next/navigation";
+import { Venue } from "@/types/booking"; // Use the shared Venue type
 
 export default function SearchBar() {
   const [query, setQuery] = useState("");
   const router = useRouter();
-  
-  interface Venue {
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    location: {
-      city: string;
-      country: string;
-    };
-    media: {
-      url: string;
-      alt: string;
-    }[];
-    rating: number;
-  }
-
   const [venues, setVenues] = useState<Venue[]>([]);
+
+  // Handle new venue creation events
+  const handleVenueCreated = (event: CustomEvent<Venue>) => {
+    // Add the newly created venue to the venues list
+    const newVenue = event.detail;
+
+    if (newVenue && newVenue.id) {
+      setVenues((prevVenues) => [newVenue, ...prevVenues]);
+    }
+  };
 
   useEffect(() => {
     const fetchVenues = async () => {
       try {
         // First check localStorage for user-created venues
-        const userVenues = localStorage.getItem('userVenues');
+        const userVenues = localStorage.getItem("userVenues");
         let localVenues: Venue[] = [];
-        
+
         if (userVenues) {
           try {
             localVenues = JSON.parse(userVenues);
-            console.log('Found user-created venues in search:', localVenues.length);
+            console.log(
+              "Found user-created venues in search:",
+              localVenues.length
+            );
           } catch (parseError) {
-            console.error('Error parsing user venues from localStorage:', parseError);
+            console.error(
+              "Error parsing user venues from localStorage:",
+              parseError
+            );
           }
         }
-        
+
+        // Add timestamp for cache busting
+        const timestamp = Date.now();
+        const apiUrl = `https://v2.api.noroff.dev/holidaze/venues?_=${timestamp}`;
+
         // Then get venues from API
-        const response = await fetch("https://v2.api.noroff.dev/holidaze/venues");
+        const response = await fetch(apiUrl, {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        });
         const result = await response.json();
         let apiVenues: Venue[] = [];
-        
+
         if (result?.data) {
           apiVenues = result.data;
         }
-        
+
         // Combine all venues, with local venues first
         setVenues([...localVenues, ...apiVenues]);
       } catch (error) {
         console.error("Error fetching venues:", error);
-        
+
         // If API fails, try to at least show local venues
-        const userVenues = localStorage.getItem('userVenues');
+        const userVenues = localStorage.getItem("userVenues");
         if (userVenues) {
           try {
             const localVenues = JSON.parse(userVenues);
             setVenues(localVenues);
           } catch (parseError) {
-            console.error('Error parsing user venues from localStorage:', parseError);
+            console.error(
+              "Error parsing user venues from localStorage:",
+              parseError
+            );
           }
         }
       }
     };
 
     fetchVenues();
+
+    // Listen for venue creation events
+    window.addEventListener(
+      "venueCreated",
+      handleVenueCreated as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "venueCreated",
+        handleVenueCreated as EventListener
+      );
+    };
   }, []);
 
   const filteredVenues = venues.filter((venue) => {
     const searchTerm = query.toLowerCase();
     return (
       // Check name
-      (venue.name?.toLowerCase() || '').includes(searchTerm) ||
+      (venue.name?.toLowerCase() || "").includes(searchTerm) ||
       // Check city if location exists
-      (venue.location?.city?.toLowerCase() || '').includes(searchTerm) ||
+      (venue.location?.city?.toLowerCase() || "").includes(searchTerm) ||
       // Check country if location exists
-      (venue.location?.country?.toLowerCase() || '').includes(searchTerm)
+      (venue.location?.country?.toLowerCase() || "").includes(searchTerm)
     );
   });
 
@@ -96,7 +123,7 @@ export default function SearchBar() {
 
   const handleVenueClick = (venueId: string) => {
     router.push(`/venue/${venueId}`);
-    setQuery(""); 
+    setQuery("");
   };
 
   return (
@@ -122,11 +149,13 @@ export default function SearchBar() {
                 onClick={() => handleVenueClick(venue.id)}
                 className="p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
               >
-                <div className="font-medium">{venue.name || 'Unnamed Venue'}</div>
+                <div className="font-medium">
+                  {venue.name || "Unnamed Venue"}
+                </div>
                 <div className="text-sm text-gray-500">
-                  {venue.location?.city ? venue.location.city : ''}
-                  {venue.location?.city && venue.location?.country ? ', ' : ''}
-                  {venue.location?.country || ''}
+                  {venue.location?.city ? venue.location.city : ""}
+                  {venue.location?.city && venue.location?.country ? ", " : ""}
+                  {venue.location?.country || ""}
                 </div>
               </div>
             ))
