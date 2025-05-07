@@ -10,30 +10,30 @@ export default function Header() {
   const [userRole, setUserRole] = useState<string>("");
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const router = useRouter();
-  
+
   // Function to handle logout
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('accessToken');
+    localStorage.removeItem("user");
+    localStorage.removeItem("accessToken");
     setIsLoggedIn(false);
     setUserName("");
     setUserRole("");
-    router.push('/login');
+    router.push("/login");
   };
 
   // Function to check login status and update state
   const checkLoginStatus = () => {
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('accessToken');
-    
-    if (storedUser && token) {
+    const storedUserProfile = localStorage.getItem("userProfile");
+    const token = localStorage.getItem("accessToken");
+
+    if (storedUserProfile && token) {
       try {
-        const userData = JSON.parse(storedUser);
+        const userData = JSON.parse(storedUserProfile);
         setUserName(userData.name || "");
-        setUserRole(userData.role || "Guest");
+        setUserRole(userData.venueManager ? "Manager" : "Guest");
         setIsLoggedIn(true);
       } catch (error) {
-        console.error('Failed to parse user data:', error);
+        console.error("Failed to parse user data:", error);
         setIsLoggedIn(false);
       }
     } else {
@@ -44,20 +44,20 @@ export default function Header() {
   useEffect(() => {
     // Check login status on mount
     checkLoginStatus();
-    
+
     // Add event listener for storage changes (for changes in other tabs)
-    window.addEventListener('storage', checkLoginStatus);
-    
+    window.addEventListener("storage", checkLoginStatus);
+
     // Create a custom event listener for login changes in the current tab
     const handleLoginChange = () => checkLoginStatus();
-    document.addEventListener('loginStateChanged', handleLoginChange);
-    
+    document.addEventListener("loginStateChanged", handleLoginChange);
+
     // Check status every second to handle any changes
     const intervalId = setInterval(checkLoginStatus, 1000);
-    
+
     return () => {
-      window.removeEventListener('storage', checkLoginStatus);
-      document.removeEventListener('loginStateChanged', handleLoginChange);
+      window.removeEventListener("storage", checkLoginStatus);
+      document.removeEventListener("loginStateChanged", handleLoginChange);
       clearInterval(intervalId);
     };
   }, []);
@@ -77,11 +77,11 @@ export default function Header() {
           </Link>
         </div>
 
-      <nav>
+        <nav>
           <ul className="flex flex-col sm:flex-row font-bold gap-4 items-center">
             <li>
-              <Link 
-                href={isLoggedIn ? "/profile" : "/login"} 
+              <Link
+                href={isLoggedIn ? "/profile" : "/login"}
                 className="hover:text-custom-blue transition flex items-center gap-1"
                 title="View Profile"
               >
@@ -90,7 +90,9 @@ export default function Header() {
                   {isLoggedIn ? (
                     <span className="flex flex-col text-xs sm:text-sm">
                       <span className="font-bold">{userName}</span>
-                      <span className="text-custom-gray">{userRole === 'venueManager' ? 'Manager' : userRole}</span>
+                      <span className="text-custom-gray">
+                        {userRole === "venueManager" ? "Manager" : userRole}
+                      </span>
                     </span>
                   ) : (
                     "Account"
@@ -98,10 +100,10 @@ export default function Header() {
                 </span>
               </Link>
             </li>
-            
+
             {isLoggedIn && (
               <li>
-                <button 
+                <button
                   onClick={handleLogout}
                   className="flex items-center gap-1 bg-white border border-custom-blue text-custom-blue rounded-md px-3 py-1 hover:bg-gray-50 transition-colors text-sm"
                 >
@@ -112,7 +114,6 @@ export default function Header() {
             )}
           </ul>
         </nav>
-   
       </div>
     </header>
   );

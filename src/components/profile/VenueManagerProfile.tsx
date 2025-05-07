@@ -1,10 +1,44 @@
-'use client';
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/router';
-import Image from 'next/image';
-import { User, Mail, Edit, Plus, Home, X, Calendar, Trash2 } from 'lucide-react';
-import Link from 'next/link';
-import { Venue, Booking } from '@/types/booking';
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import Image from "next/image";
+import {
+  User,
+  Mail,
+  Edit,
+  Plus,
+  Home,
+  X,
+  Calendar,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
+import { Venue, Booking } from "@/types/booking";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/use-toast";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { fetchWithAuth } from "@/utils/api";
 
 interface UserData {
   name: string;
@@ -21,197 +55,259 @@ interface UserData {
   role?: string;
 }
 
+// Schema for venue creation form
+const venueFormSchema = z.object({
+  name: z.string().min(3, "Title must be at least 3 characters"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  price: z.coerce.number().min(1, "Price must be greater than 0"),
+  maxGuests: z.coerce.number().min(1, "Maximum guests must be at least 1"),
+  media: z
+    .array(
+      z.object({
+        url: z.string().url("Must be a valid URL"),
+        alt: z.string().optional().default(""),
+      })
+    )
+    .optional()
+    .default([]),
+  location: z.object({
+    address: z.string().optional(),
+    city: z.string().optional(),
+    zip: z.string().optional(),
+    country: z.string().optional(),
+    continent: z.string().optional().default("Unknown"),
+    lat: z.number().optional().default(0),
+    lng: z.number().optional().default(0),
+  }),
+  meta: z.object({
+    wifi: z.boolean().default(false),
+    parking: z.boolean().default(false),
+    breakfast: z.boolean().default(false),
+    pets: z.boolean().default(false),
+  }),
+});
+
+// Type for the form data
+type VenueFormValues = z.infer<typeof venueFormSchema>;
+
+// Default form values
+const defaultVenueValues: VenueFormValues = {
+  name: "",
+  description: "",
+  price: 0,
+  maxGuests: 1,
+  media: [{ url: "", alt: "" }],
+  location: {
+    address: "",
+    city: "",
+    country: "",
+    zip: "",
+    continent: "Unknown",
+    lat: 0,
+    lng: 0,
+  },
+  meta: {
+    wifi: false,
+    parking: false,
+    breakfast: false,
+    pets: false,
+  },
+};
+
 export default function VenueManagerProfile() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [venueBookings, setVenueBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [showEditForm, setShowEditForm] = useState(false);
-  const [showAddVenueModal, setShowAddVenueModal] = useState(false);
   const [formData, setFormData] = useState({
-    bio: '',
-    avatarUrl: ''
+    bio: "",
+    avatarUrl: "",
   });
-  
-  // Add venue form state
-  const [venueFormData, setVenueFormData] = useState({
-    title: '',
-    description: '',
-    imageUrl: '',
-    price: '',
-    maxGuests: '',
-    address: '',
-    postCode: '',
-    city: '',
-    country: '',
-    rating: 0,
-    amenities: {
-      wifi: false,
-      pets: false,
-      parking: false,
-      breakfast: false
-    }
-  });
-  const [createVenueLoading, setCreateVenueLoading] = useState(false);
+
   const router = useRouter();
+  const { toast } = useToast();
 
-  // Define fetchVenueBookings using useCallback to avoid dependency issues
-  const fetchVenueBookings = useCallback(() => {
-    try {
-      const storedBookings = localStorage.getItem('bookings');
-      if (!storedBookings) {
-        return;
-      }
-      
-      const allBookings = JSON.parse(storedBookings) as Booking[];
-      
-      // Get all venue IDs owned by this manager
-      const managerVenueIds = venues.map(venue => venue.id);
-      
-      // Filter bookings to only those for venues owned by this manager
-      const relevantBookings = allBookings.filter(booking => {
-        return managerVenueIds.includes(booking.venue.id);
-      });
-      
-      // Sort bookings by date (most recent first)
-      relevantBookings.sort((a, b) => {
-        return new Date(b.dateFrom).getTime() - new Date(a.dateFrom).getTime();
-      });
-      
-      setVenueBookings(relevantBookings);
-    } catch (error) {
-      console.error('Error fetching venue bookings:', error);
-    }
-  }, [venues]);
+  // Form for creating venues
+  const venueForm = useForm<VenueFormValues>({
+    resolver: zodResolver(venueFormSchema),
+    defaultValues: defaultVenueValues,
+  });
 
-  // Load bookings for the manager's venues when venues are loaded
-  useEffect(() => {
-    if (venues.length > 0) {
-      fetchVenueBookings();
-    }
-  }, [venues, fetchVenueBookings]);
+  // State for venue creation dialog
+  const [venueDialogOpen, setVenueDialogOpen] = useState(false);
+  const [isCreatingVenue, setIsCreatingVenue] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+
         if (!user || !user.name) {
-          console.error('No user found in localStorage');
-          router.push('/login');
+          console.error("No user found in localStorage");
+          router.push("/login");
           return;
         }
-        
+
         setUserData(user);
         await fetchManagerVenues();
       } catch (error) {
-        console.error('Error loading profile data:', error);
+        console.error("Error loading profile data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load profile data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
     };
-    
+
     fetchData();
-  }, [router]);
-  
-  
-  const fetchManagerVenues = async () => {
+  }, [router, toast]);
+
+  useEffect(() => {
+    if (venues.length > 0) {
+      fetchVenueBookings();
+    }
+  }, [venues]);
+
+  const fetchVenueBookings = async () => {
     try {
-      // First check localStorage for any saved venues
-      const savedVenues = localStorage.getItem('userVenues');
-      
-      if (savedVenues) {
-        const parsedVenues = JSON.parse(savedVenues);
-        setVenues(parsedVenues);
-        console.log('Loaded venues from localStorage:', parsedVenues.length);
-      }
-      
-      // Then try to get venues from API
-      const token = localStorage.getItem('accessToken');
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const userName = user.name;
-      
-      if (!token || !userName) {
-        console.error('Authentication required to fetch venues from API');
-        setLoading(false);
+      const storedBookings = localStorage.getItem("bookings");
+      if (!storedBookings) {
         return;
       }
-      
-      // Try to authenticate with the API
-      const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-      console.log(`Fetching venues from API for user: ${userName}`);
-      
-      // First try to fetch venues specific to the manager profile
-      try {
-        const profileResponse = await fetch(`https://v2.api.noroff.dev/holidaze/profiles/${userName}?_venues=true`, {
-          headers: {
-            'Authorization': authToken,
-            'Content-Type': 'application/json'
-          }
+
+      const allBookings = JSON.parse(storedBookings) as Booking[];
+
+      // Get all venue IDs owned by this manager
+      const managerVenueIds = venues.map((venue) => venue.id);
+
+      // Filter bookings to only those for venues owned by this manager
+      const relevantBookings = allBookings.filter((booking) => {
+        return managerVenueIds.includes(booking.venue.id);
+      });
+
+      // Sort bookings by date (most recent first)
+      relevantBookings.sort((a, b) => {
+        return new Date(b.dateFrom).getTime() - new Date(a.dateFrom).getTime();
+      });
+
+      setVenueBookings(relevantBookings);
+    } catch (error) {
+      console.error("Error fetching venue bookings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load venue bookings",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchManagerVenues = async () => {
+    try {
+      setLoading(true);
+
+      // Get authentication data
+      const token = localStorage.getItem("accessToken");
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const userName = user.name;
+
+      if (!token || !userName) {
+        toast({
+          title: "Authentication Required",
+          description: "Please login to view your venues",
+          variant: "destructive",
         });
-        
+        router.push("/login");
+        return;
+      }
+
+      // Prepare auth token
+      // Try to fetch venues from the profile endpoint
+      try {
+        const profileResponse = await fetchWithAuth(
+          `https://v2.api.noroff.dev/holidaze/profiles/${userName}?_venues=true`,
+          {
+            method: "GET",
+          }
+        );
+
         if (profileResponse.ok) {
           const profileData = await profileResponse.json();
           if (profileData.data?.venues && profileData.data.venues.length > 0) {
-            const apiVenues = profileData.data.venues;
-            console.log('API Venues loaded:', apiVenues.length);
-            
-            // Merge local venues with API venues
-            const localVenues = savedVenues ? JSON.parse(savedVenues).filter((v: Venue) => v.id.startsWith('temp-')) : [];
-            const mergedVenues = [...apiVenues, ...localVenues];
-            
-            setVenues(mergedVenues);
-            localStorage.setItem('userVenues', JSON.stringify(mergedVenues));
-            setLoading(false);
+            setVenues(profileData.data.venues);
             return;
           }
+        } else {
+          const errorData = await profileResponse.json();
+          const errorMessage =
+            errorData.errors?.[0]?.message ||
+            errorData.message ||
+            `Error: ${profileResponse.status}`;
+          console.error("Profile endpoint error:", errorMessage);
         }
       } catch (profileError) {
-        console.error('Error fetching from profile endpoint:', profileError);
+        console.error("Error fetching from profile endpoint:", profileError);
       }
-      
+
       // Fallback: fetch all venues, then filter to only show user's venues
       try {
-        console.log('Falling back to fetching all venues...');
-        const allVenuesResponse = await fetch('https://v2.api.noroff.dev/holidaze/venues');
-        
+        const allVenuesResponse = await fetch(
+          "https://v2.api.noroff.dev/holidaze/venues"
+        );
+
         if (allVenuesResponse.ok) {
           const allVenuesData = await allVenuesResponse.json();
-          
+
           // Filter venues where the current user is the owner
-          const myVenues = allVenuesData.data?.filter((venue: {
-            owner?: {
-              name: string;
-              email: string;
-            }
-          }) => {
-            if (venue.owner) {
-              return venue.owner.name === userName || 
-                     venue.owner.email === user.email;
-            }
-            return false;
-          }) || [];
-          
-          console.log('Filtered API venues:', myVenues.length);
-          
-          // Merge with any locally created venues
-          const localVenues = savedVenues ? JSON.parse(savedVenues).filter((v: Venue) => v.id.startsWith('temp-')) : [];
-          const mergedVenues = [...myVenues, ...localVenues];
-          
-          setVenues(mergedVenues);
-          localStorage.setItem('userVenues', JSON.stringify(mergedVenues));
+          const myVenues =
+            allVenuesData.data?.filter(
+              (venue: {
+                owner?: {
+                  name: string;
+                  email: string;
+                };
+              }) => {
+                if (venue.owner) {
+                  return (
+                    venue.owner.name === userName ||
+                    venue.owner.email === user.email
+                  );
+                }
+                return false;
+              }
+            ) || [];
+
+          setVenues(myVenues);
         } else {
-          console.error('Failed to fetch venues from API');
-          
-          // If we have local venues, use those
-          if (savedVenues) {
-            const localVenues = JSON.parse(savedVenues);
-            setVenues(localVenues);
-          }
+          const errorData = await allVenuesResponse.json();
+          const errorMessage =
+            errorData.errors?.[0]?.message ||
+            errorData.message ||
+            `Error: ${allVenuesResponse.status}`;
+          throw new Error(errorMessage);
         }
       } catch (allVenuesError) {
-        console.error('Error in fallback fetch:', allVenuesError);
+        console.error("Error in fallback fetch:", allVenuesError);
+        toast({
+          title: "Error Loading Venues",
+          description:
+            allVenuesError instanceof Error
+              ? allVenuesError.message
+              : "Failed to load venues",
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      console.error('Error in venue fetching process:', error);
+      console.error("Error in venue fetching process:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to load venues",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -219,8 +315,8 @@ export default function VenueManagerProfile() {
 
   const handleEditFormOpen = () => {
     setFormData({
-      bio: userData?.bio || '',
-      avatarUrl: userData?.avatar?.url || ''
+      bio: userData?.bio || "",
+      avatarUrl: userData?.avatar?.url || "",
     });
     setShowEditForm(true);
   };
@@ -229,192 +325,214 @@ export default function VenueManagerProfile() {
     setShowEditForm(false);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
-  };
-  
-  // Add Venue Form Handlers
-  const handleVenueInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setVenueFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-  
-  const handleClearInput = (fieldName: string) => {
-    setVenueFormData(prev => ({
-      ...prev,
-      [fieldName]: ''
-    }));
-  };
-  
-  const handleAmenityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setVenueFormData(prev => ({
-      ...prev,
-      amenities: {
-        ...prev.amenities,
-        [name]: checked
-      }
-    }));
-  };
-  
-  const handleRatingChange = (value: number) => {
-    setVenueFormData(prev => ({
-      ...prev,
-      rating: value
-    }));
-  };
-  
-  const handleDeleteVenue = (venueId: string) => {
-    // Confirm before deleting
-    if (!confirm('Are you sure you want to delete this venue?')) {
-      return;
-    }
-    
-    try {
-      // Filter out the venue to delete
-      const updatedVenues = venues.filter(venue => venue.id !== venueId);
-      
-      // Update state and localStorage
-      setVenues(updatedVenues);
-      localStorage.setItem('userVenues', JSON.stringify(updatedVenues));
-      
-      // Show a success message
-      alert('Venue deleted successfully!');
-    } catch (error) {
-      console.error('Error deleting venue:', error);
-      alert('Failed to delete venue. Please try again.');
-    }
-  };
-  
-  const handleCreateVenue = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreateVenueLoading(true);
-    
-    try {
-      // Get username from local storage for owner info
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      
-      // Create a new venue that matches the required interface structure
-       const newVenue: Venue = {
-        id: `temp-${Date.now()}`,
-        name: venueFormData.title,
-        description: venueFormData.description,
-        media: [
-          {
-            url: venueFormData.imageUrl || '/asset/placeholder-venue.jpg',
-            alt: venueFormData.title
-          }
-        ],
-        price: Number(venueFormData.price),
-        maxGuests: Number(venueFormData.maxGuests),
-        rating: venueFormData.rating,
-        location: {
-          address: venueFormData.address,
-          city: venueFormData.city,
-          country: venueFormData.country,
-          continent: 'Unknown', // Default value
-          lat: 0, // Default value
-          lng: 0  // Default value
-        },
-        meta: {
-          wifi: venueFormData.amenities.wifi,
-          parking: venueFormData.amenities.parking,
-          breakfast: venueFormData.amenities.breakfast,
-          pets: venueFormData.amenities.pets
-        },
-        owner: {
-          name: user.name || 'Venue Manager',
-          email: user.email || 'manager@holidaze.com',
-          avatar: user.avatar?.url
-        }
-      };
-    
-      // Owner information already added to the venue object
-      
-      
-      const updatedVenues = [newVenue, ...venues];
-      setVenues(updatedVenues);
-      
- 
-      localStorage.setItem('userVenues', JSON.stringify(updatedVenues));
-      
-  
-      setVenueFormData({
-        title: '',
-        description: '',
-        imageUrl: '',
-        price: '',
-        maxGuests: '',
-        address: '',
-        postCode: '',
-        city: '',
-        country: '',
-        rating: 0,
-        amenities: {
-          wifi: false,
-          pets: false,
-          parking: false,
-          breakfast: false
-        }
-      });
-      
-      setShowAddVenueModal(false);
-      alert('Venue created successfully!');
-      
-    } catch (error) {
-      console.error('Error creating venue:', error);
-      alert(error instanceof Error ? error.message : 'Failed to create venue');
-    } finally {
-      setCreateVenueLoading(false);
-    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!userData) return;
-    
 
     const updatedUserData = {
       ...userData,
       bio: formData.bio || userData.bio,
-    
-      avatar: formData.avatarUrl && formData.avatarUrl.trim() ? {
-        url: formData.avatarUrl.trim(),
-        alt: 'Venue manager avatar'
-      } : userData.avatar,
-      
-     
+      avatar:
+        formData.avatarUrl && formData.avatarUrl.trim()
+          ? {
+              url: formData.avatarUrl.trim(),
+              alt: "Venue manager avatar",
+            }
+          : userData.avatar,
       banner: userData.banner,
-      
-     
-      venueManager: true
+      venueManager: true,
     };
-    
-    console.log('Updated user data:', updatedUserData);
-    
-   
-    localStorage.setItem('user', JSON.stringify(updatedUserData));
-    
 
+    localStorage.setItem("user", JSON.stringify(updatedUserData));
     setUserData(updatedUserData);
     setShowEditForm(false);
-    
 
-    alert('Profile updated successfully!');
+    toast({
+      title: "Success!",
+      description: "Profile updated successfully",
+    });
+  };
+
+  // Add Venue Form Handlers
+  const handleVenueInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    venueForm.setValue(name, value);
+  };
+
+  const handleClearInput = (fieldName: string) => {
+    venueForm.setValue(fieldName, "");
+  };
+
+  const handleAmenityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    venueForm.setValue(`meta.${name}`, checked);
+  };
+
+  const handleRatingChange = (value: number) => {
+    venueForm.setValue("rating", value);
+  };
+
+  const handleDeleteVenue = async (venueId: string) => {
+    // Confirm before deleting
+    if (!confirm("Are you sure you want to delete this venue?")) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        toast({
+          title: "Authentication Required",
+          description: "Please login to delete venues",
+          variant: "destructive",
+        });
+        router.push("/login");
+        return;
+      }
+
+      // Make API call to delete venue
+      const response = await fetchWithAuth(
+        `https://v2.api.noroff.dev/holidaze/venues/${venueId}?_owner=true`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage =
+          errorData.errors?.[0]?.message ||
+          errorData.message ||
+          `Failed to delete venue: ${response.status}`;
+        throw new Error(errorMessage);
+      }
+
+      // Update venues list after deletion
+      setVenues((prevVenues) =>
+        prevVenues.filter((venue) => venue.id !== venueId)
+      );
+
+      toast({
+        title: "Success!",
+        description: "Venue deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting venue:", error);
+      toast({
+        title: "Error Deleting Venue",
+        description:
+          error instanceof Error ? error.message : "Failed to delete venue",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateVenue = async (data: VenueFormValues) => {
+    setIsCreatingVenue(true);
+
+    try {
+      // Get authentication token
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        toast({
+          title: "Authentication Required",
+          description: "Please login to create venues",
+          variant: "destructive",
+        });
+        router.push("/login");
+        return;
+      }
+
+      // Ensure we have at least one media item with a valid URL
+      const validMedia =
+        data.media &&
+        data.media.length > 0 &&
+        data.media.some((m) => m.url.trim() !== "")
+          ? data.media.filter((m) => m.url.trim() !== "")
+          : [{ url: "/asset/placeholder-venue.jpg", alt: data.name }];
+
+      // Prepare venue data
+      const venueData = {
+        ...data,
+        media: validMedia,
+      };
+
+      // Make API call to create venue
+      const response = await fetchWithAuth(
+        "https://v2.api.noroff.dev/holidaze/venues",
+        {
+          method: "POST",
+          body: JSON.stringify(venueData),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage =
+          errorData.errors?.[0]?.message ||
+          errorData.message ||
+          `Failed to create venue: ${response.status}`;
+        throw new Error(errorMessage);
+      }
+
+      const responseData = await response.json();
+
+      // Add the new venue to the list and refresh venues
+      setVenues((prevVenues) => [responseData.data, ...prevVenues]);
+
+      // Close the dialog and reset form
+      setVenueDialogOpen(false);
+      venueForm.reset(defaultVenueValues);
+
+      toast({
+        title: "Success!",
+        description: "Venue created successfully",
+      });
+    } catch (error) {
+      console.error("Error creating venue:", error);
+      toast({
+        title: "Error Creating Venue",
+        description:
+          error instanceof Error ? error.message : "Failed to create venue",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingVenue(false);
+    }
+  };
+
+  // Helper to add a new media field
+  const addMediaField = () => {
+    const currentMedia = venueForm.getValues("media") || [];
+    venueForm.setValue("media", [...currentMedia, { url: "", alt: "" }]);
+  };
+
+  // Helper to remove a media field
+  const removeMediaField = (index: number) => {
+    const currentMedia = venueForm.getValues("media") || [];
+    venueForm.setValue(
+      "media",
+      currentMedia.filter((_, i) => i !== index)
+    );
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-custom-blue"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -422,22 +540,28 @@ export default function VenueManagerProfile() {
   if (!userData) {
     return (
       <div className="text-center py-10">
-        <p className="text-red-500">Please log in to view your profile.</p>
+        <p className="text-destructive">Please log in to view your profile.</p>
+        <Button
+          variant="default"
+          className="mt-4"
+          onClick={() => router.push("/login")}
+        >
+          Go to Login
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-    
+    <div className="container max-w-4xl mx-auto px-4 py-8">
+      {/* Profile Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
         <div className="flex items-center">
-       
           <div className="w-16 h-16 mr-4 rounded-full overflow-hidden bg-white border-2 border-gray-200">
             {userData.avatar ? (
-              <Image 
+              <Image
                 src={userData.avatar.url}
-                alt={userData.avatar.alt || 'Avatar'}
+                alt={userData.avatar.alt || "Avatar"}
                 width={64}
                 height={64}
                 className="object-cover"
@@ -448,371 +572,390 @@ export default function VenueManagerProfile() {
               </div>
             )}
           </div>
-          
-     
+
           <div>
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-custom-blue">{userData.name}</h1>
-              <span className="ml-2 px-2 py-0.5 bg-custom-blue text-white text-xs font-semibold rounded-full">
+              <h1 className="text-2xl font-bold text-primary">
+                {userData.name}
+              </h1>
+              <span className="ml-2 px-2 py-0.5 bg-primary text-white text-xs font-semibold rounded-full">
                 Manager
               </span>
             </div>
-          
+
             {userData.bio && (
               <div className="mt-3 text-gray-700 max-w-md">
-                <span className="font-medium">Bio:</span> <span className="italic">&ldquo;{userData.bio}&rdquo;</span>
+                <span className="font-medium">Bio:</span>{" "}
+                <span className="italic">&ldquo;{userData.bio}&rdquo;</span>
               </div>
-              
             )}
-              <div className="flex items-center text-custom-gray mt-1">
+            <div className="flex items-center text-muted-foreground mt-1">
               <Mail className="w-4 h-4 mr-1" />
               <span>{userData.email}</span>
             </div>
           </div>
         </div>
         <div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
-          <button 
-            onClick={() => setShowAddVenueModal(true)}
-            className="flex items-center justify-center px-4 py-2 bg-custom-blue hover:bg-blue-700 rounded-md text-white transition-colors"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Venue
-          </button>
-          <button 
-            onClick={handleEditFormOpen}
-            className="flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 transition-colors"
-          >
-            <Edit className="w-4 h-4 mr-2" />
-            Edit Profile
-          </button>
+          <Dialog open={venueDialogOpen} onOpenChange={setVenueDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="customBlue">
+                <Plus className="mr-2 h-4 w-4" /> Add Venue
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create a New Venue</DialogTitle>
+              </DialogHeader>
+              <Form {...venueForm}>
+                <form
+                  onSubmit={venueForm.handleSubmit(handleCreateVenue)}
+                  className="space-y-6"
+                >
+                  <FormField
+                    control={venueForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Venue Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter venue name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={venueForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Describe your venue"
+                            className="resize-none"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={venueForm.control}
+                      name="price"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Price per night</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              placeholder="Price"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={venueForm.control}
+                      name="maxGuests"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Max Guests</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              placeholder="Max guests"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="mb-2 block">Media</Label>
+                    {venueForm.watch("media")?.map((_, index) => (
+                      <div key={index} className="flex gap-2 mb-2">
+                        <FormField
+                          control={venueForm.control}
+                          name={`media.${index}.url`}
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormControl>
+                                <Input placeholder="Image URL" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => removeMediaField(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addMediaField}
+                      className="mt-1"
+                    >
+                      <Plus className="mr-2 h-4 w-4" /> Add Image
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="font-medium mb-2">Location Details</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={venueForm.control}
+                        name="location.address"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Address</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Address" {...field} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={venueForm.control}
+                        name="location.zip"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Postal Code</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Post code" {...field} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={venueForm.control}
+                        name="location.city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>City</FormLabel>
+                            <FormControl>
+                              <Input placeholder="City" {...field} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={venueForm.control}
+                        name="location.country"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Country</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Country" {...field} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-medium mb-2">Amenities</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <FormField
+                        control={venueForm.control}
+                        name="meta.wifi"
+                        render={({ field }) => (
+                          <FormItem className="flex items-start space-x-2 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal">WiFi</FormLabel>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={venueForm.control}
+                        name="meta.parking"
+                        render={({ field }) => (
+                          <FormItem className="flex items-start space-x-2 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Parking
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={venueForm.control}
+                        name="meta.breakfast"
+                        render={({ field }) => (
+                          <FormItem className="flex items-start space-x-2 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Breakfast
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={venueForm.control}
+                        name="meta.pets"
+                        render={({ field }) => (
+                          <FormItem className="flex items-start space-x-2 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Pets allowed
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isCreatingVenue}
+                  >
+                    {isCreatingVenue ? "Creating..." : "Create Venue"}
+                  </Button>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+
+          <Button variant="outline" onClick={handleEditFormOpen}>
+            <Edit className="mr-2 h-4 w-4" /> Edit Profile
+          </Button>
         </div>
       </div>
 
-  
-      {showAddVenueModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-center text-custom-blue">CREATE A NEW VENUE</h2>
-                <button 
-                  onClick={() => setShowAddVenueModal(false)}
-                  className="text-gray-600 hover:text-gray-800"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              
-              <form onSubmit={handleCreateVenue}>
-            
-                <div className="mb-4 relative">
-                  <input
-                    type="text"
-                    id="title"
-                    name="title"
-                    value={venueFormData.title}
-                    onChange={handleVenueInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
-                    placeholder="Title.."
-                    required
-                  />
-                  <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
-                    onClick={() => handleClearInput('title')} />
-                </div>
-                
-        
-                <div className="mb-4 relative">
-                  <textarea
-                    id="description"
-                    name="description"
-                    value={venueFormData.description}
-                    onChange={handleVenueInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
-                    placeholder="Description.."
-                    rows={3}
-                    required
-                  />
-                  <X className="absolute right-3 top-8 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
-                    onClick={() => handleClearInput('description')} />
-                </div>
-        
-                <div className="mb-4 flex gap-2">
-                  <div className="flex-grow relative">
-                    <input
-                      type="text"
-                      id="imageUrl"
-                      name="imageUrl"
-                      value={venueFormData.imageUrl}
-                      onChange={handleVenueInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
-                      placeholder="New Image URL..."
-                    />
-                    <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
-                      onClick={() => handleClearInput('imageUrl')} />
-                  </div>
-                
-                </div>
-  
-                <div className="mb-4 grid grid-cols-2 gap-4">
-                  <div className="relative">
-                    <input
-                      type="number"
-                      id="price"
-                      name="price"
-                      value={venueFormData.price}
-                      onChange={handleVenueInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
-                      placeholder="Price.."
-                      required
-                      min="0"
-                    />
-                    <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
-                      onClick={() => handleClearInput('price')} />
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      id="maxGuests"
-                      name="maxGuests"
-                      value={venueFormData.maxGuests}
-                      onChange={handleVenueInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
-                      placeholder="Max guests.."
-                      required
-                      min="1"
-                    />
-                    <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
-                      onClick={() => handleClearInput('maxGuests')} />
-                  </div>
-                </div>
-                
-      
-                <div className="mb-6">
-                  <p className="font-medium mb-2">[x] This Venue offers</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        name="wifi"
-                        checked={venueFormData.amenities.wifi}
-                        onChange={handleAmenityChange}
-                        className="form-checkbox rounded text-custom-blue"
-                      />
-                      <span>Wifi</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        name="pets"
-                        checked={venueFormData.amenities.pets}
-                        onChange={handleAmenityChange}
-                        className="form-checkbox rounded text-custom-blue"
-                      />
-                      <span>Pets</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        name="parking"
-                        checked={venueFormData.amenities.parking}
-                        onChange={handleAmenityChange}
-                        className="form-checkbox rounded text-custom-blue"
-                      />
-                      <span>Parking</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        name="breakfast"
-                        checked={venueFormData.amenities.breakfast}
-                        onChange={handleAmenityChange}
-                        className="form-checkbox rounded text-custom-blue"
-                      />
-                      <span>Breakfast</span>
-                    </label>
-                  </div>
-                </div>
-         
-                <div className="mb-6">
-                  <p className="font-medium mb-2 text-purple-700">LOCATION</p>
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        id="address"
-                        name="address"
-                        value={venueFormData.address}
-                        onChange={handleVenueInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
-                        placeholder="Address..."
-                      />
-                      <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
-                        onClick={() => handleClearInput('address')} />
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        id="postCode"
-                        name="postCode"
-                        value={venueFormData.postCode}
-                        onChange={handleVenueInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
-                        placeholder="Post code..."
-                      />
-                      <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
-                        onClick={() => handleClearInput('postCode')} />
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        id="city"
-                        name="city"
-                        value={venueFormData.city}
-                        onChange={handleVenueInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
-                        placeholder="City..."
-                      />
-                      <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
-                        onClick={() => handleClearInput('city')} />
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        id="country"
-                        name="country"
-                        value={venueFormData.country}
-                        onChange={handleVenueInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md pr-8"
-                        placeholder="Country..."
-                      />
-                      <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer" 
-                        onClick={() => handleClearInput('country')} />
-                    </div>
-                  </div>
-                </div>
-                
-           
-                <div className="mb-6">
-                  <p className="font-medium mb-2">[x] Select your rating for the venue</p>
-                  <div className="flex space-x-8">
-                    {[1, 2, 3, 4, 5].map((value) => (
-                      <label key={value} className="flex items-center space-x-1">
-                        <input
-                          type="radio"
-                          name="rating"
-                          value={value}
-                          checked={Number(venueFormData.rating) === value}
-                          onChange={() => handleRatingChange(value)}
-                          className="form-radio text-custom-blue"
-                        />
-                        <span>{value}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="mt-6">
-                  <button
-                    type="submit"
-                    className="w-full bg-custom-blue hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center"
-                    disabled={createVenueLoading}
-                  >
-                    {createVenueLoading ? 'Creating...' : 'Create Venue'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-    
+      {/* Profile Edit Form */}
       {showEditForm && (
         <div className="mt-8 p-6 bg-white rounded-lg shadow-md">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-custom-blue">Edit Profile</h2>
-            <button 
-              onClick={handleEditFormClose}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              ✕
-            </button>
+            <h2 className="text-xl font-semibold text-primary">Edit Profile</h2>
+            <Button variant="ghost" size="sm" onClick={handleEditFormClose}>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          
-          <form onSubmit={handleSubmit}>
+
+          <form onSubmit={handleProfileSubmit}>
             <div className="mb-4">
-              <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="bio" className="block mb-1">
                 Your Bio
-              </label>
-              <textarea
+              </Label>
+              <Textarea
                 id="bio"
                 name="bio"
                 value={formData.bio}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-custom-blue"
+                className="resize-none"
                 rows={3}
                 placeholder="Tell us a bit about yourself"
               />
             </div>
-            
+
             <div className="mb-4">
-              <label htmlFor="avatarUrl" className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="avatarUrl" className="block mb-1">
                 Avatar URL
-              </label>
-              <input
+              </Label>
+              <Input
                 type="text"
                 id="avatarUrl"
                 name="avatarUrl"
                 value={formData.avatarUrl}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-custom-blue"
                 placeholder="Enter avatar image URL"
               />
             </div>
-            
 
-            
             <div className="flex space-x-3">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-custom-blue hover:bg-blue-600 text-white rounded-md transition-colors"
-                disabled={loading}
-              >
-                {loading ? 'Saving...' : 'Save Changes'}
-              </button>
-              <button
+              <Button type="submit" disabled={loading}>
+                {loading ? "Saving..." : "Save Changes"}
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
                 onClick={handleEditFormClose}
-                className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-md transition-colors"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         </div>
       )}
-      
-   
+
+      {/* Venues Section */}
       <div className="mt-8">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">My Venues</h2>
-        
+
         {loading ? (
           <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-custom-blue"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
           </div>
         ) : venues.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <Home className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-            <h3 className="text-lg font-medium text-gray-700 mb-2">No venues yet</h3>
-            <p className="text-gray-500 mb-4">You haven&apos;t created any venues yet.</p>
-            <Link href="/holidaze/venues/create" className="inline-flex items-center px-4 py-2 bg-custom-blue text-white rounded-md hover:bg-blue-700 transition-colors">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Your First Venue
-            </Link>
+            <h3 className="text-lg font-medium text-gray-700 mb-2">
+              No venues yet
+            </h3>
+            <p className="text-gray-500 mb-4">
+              You haven&apos;t created any venues yet.
+            </p>
+            <Button onClick={() => setVenueDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Add Your First Venue
+            </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {venues.map(venue => (
-              <div key={venue.id} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+            {venues.map((venue) => (
+              <div
+                key={venue.id}
+                className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col"
+              >
                 <div className="relative h-40 w-full">
                   {venue.media && venue.media.length > 0 ? (
                     <Image
@@ -828,24 +971,35 @@ export default function VenueManagerProfile() {
                   )}
                 </div>
                 <div className="p-4">
-                  <h3 className="font-semibold text-custom-blue truncate" title={venue.name}>{venue.name}</h3>
+                  <h3
+                    className="font-semibold text-primary truncate"
+                    title={venue.name}
+                  >
+                    {venue.name}
+                  </h3>
                   <div className="flex justify-between items-center mt-2">
-                    <span className="text-custom-orange font-medium">NOK {venue.price}</span>
+                    <span className="text-orange-500 font-medium">
+                      NOK {venue.price}
+                    </span>
                     <div className="flex text-yellow-500">
-                      {'★'.repeat(Math.floor(venue.rating))}{'☆'.repeat(5-Math.floor(venue.rating))}
+                      {"★".repeat(Math.floor(venue.rating || 0))}
+                      {"☆".repeat(5 - Math.floor(venue.rating || 0))}
                     </div>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button
+                    <Button
                       onClick={() => handleDeleteVenue(venue.id)}
-                      className="flex items-center justify-center py-1.5 bg-red-100 hover:bg-red-200 rounded text-sm text-red-700 transition-colors"
+                      variant="destructive"
+                      size="sm"
                     >
-                      <Trash2 className="w-3 h-3 mr-1" />
+                      <Trash2 className="mr-1 h-3 w-3" />
                       Delete
-                    </button>
-                    <Link href={`/holidaze/venues/${venue.id}/edit`} className="flex items-center justify-center py-1.5 bg-custom-blue hover:bg-blue-700 rounded text-sm text-white transition-colors">
-                      <Edit className="w-3 h-3 mr-1" />
-                      Edit
+                    </Button>
+                    <Link href={`/venues/edit/${venue.id}`} passHref>
+                      <Button variant="default" size="sm" className="w-full">
+                        <Edit className="mr-1 h-3 w-3" />
+                        Edit
+                      </Button>
                     </Link>
                   </div>
                 </div>
@@ -855,10 +1009,12 @@ export default function VenueManagerProfile() {
         )}
       </div>
 
-  
+      {/* Bookings Section */}
       <div className="mt-12">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">Upcoming Bookings for My Venues</h2>
-        
+        <h2 className="text-xl font-semibold mb-4 text-gray-800">
+          Upcoming Bookings for My Venues
+        </h2>
+
         {venueBookings.length === 0 ? (
           <div className="text-center py-8 bg-gray-50 rounded-lg">
             <p className="text-gray-500">No bookings for your venues yet.</p>
@@ -866,24 +1022,40 @@ export default function VenueManagerProfile() {
         ) : (
           <div className="space-y-4">
             {venueBookings.map((booking) => (
-              <div key={booking.id} className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
+              <div
+                key={booking.id}
+                className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow"
+              >
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-semibold text-custom-blue">{booking.venue.name}</h3>
+                    <h3 className="font-semibold text-primary">
+                      {booking.venue.name}
+                    </h3>
                     <div className="flex items-center text-sm text-gray-600 mt-1">
                       <Calendar className="w-4 h-4 mr-1" />
                       <span>
-                        {new Date(booking.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(booking.dateTo).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {new Date(booking.dateFrom).toLocaleDateString(
+                          "en-US",
+                          { month: "short", day: "numeric" }
+                        )}{" "}
+                        -{" "}
+                        {new Date(booking.dateTo).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
                       </span>
                     </div>
                     <p className="text-sm mt-2">
-                      <span className="font-medium">Guest:</span> {booking.userId}
+                      <span className="font-medium">Guest:</span>{" "}
+                      {booking.userId}
                     </p>
                     <p className="text-sm">
-                      <span className="font-medium">Guests:</span> {booking.guests}
+                      <span className="font-medium">Guests:</span>{" "}
+                      {booking.guests}
                     </p>
                   </div>
-                  
+
                   <div className="text-right">
                     <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
                       Confirmed

@@ -15,6 +15,7 @@ export interface Venue {
     city: string;
     country: string;
     continent: string;
+    zip?: string;
     lat: number;
     lng: number;
   };
@@ -28,6 +29,32 @@ export interface Venue {
     name: string;
     email: string;
     avatar?: string;
+  };
+  bookings?: {
+    id: string;
+    dateFrom: string;
+    dateTo: string;
+    guests: number;
+    created: string;
+    updated?: string;
+    customer?: {
+      name: string;
+      email: string;
+      bio?: string | null;
+      avatar?: {
+        url: string;
+        alt: string;
+      };
+      banner?: {
+        url: string;
+        alt: string;
+      };
+    };
+  }[];
+  created?: string;
+  updated?: string;
+  _count?: {
+    bookings: number;
   };
 }
 

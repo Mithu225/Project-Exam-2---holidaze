@@ -80,9 +80,10 @@ const VenueList = () => {
       // Process owner information for all venues
       apiVenues = apiVenues.map((venue: Venue) => {
         if (typeof venue.owner === 'string') {
+          const ownerName = venue.owner;
           venue.owner = {
-            name: venue.owner,
-            email: `${venue.owner.toLowerCase().replace(/\\s+/g, '.')}@holidaze.com`,
+            name: ownerName,
+            email: `${ownerName.toLowerCase().replace(/\s+/g, '.')}@holidaze.com`,
             avatar: null
           };
         }
