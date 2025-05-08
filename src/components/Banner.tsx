@@ -7,22 +7,23 @@ const Banner = () => {
   };
 
   return (
-    <div className="relative">
-      
-      <div className="w-full">
+    <div className="relative w-full flex justify-center">
+      <div className="max-w-[1024px]">
         <Image
           src="/asset/holidaze-banner.png"
           alt="Holidaze Banner"
           height={622}
-          width={1440}
-          className="w-full"
+          width={1024}
+          className="w-full object-cover"
         />
       </div>
 
-      
-      <div className="absolute top-8 right-0 max-w-xs">
+     <div className="absolute top-8 right-0">
+  <div className="relative max-w-[1024px] mx-auto">
         <div className="bg-teal-500/80 rounded-tl-3xl rounded-bl-3xl p-4 text-center w-80">
-          <p className="text-sm md:text-base font-medium text-white mb-2">Escape the ordinary.</p>
+          <p className="text-sm md:text-base font-medium text-white mb-2">
+            Escape the ordinary.
+          </p>
           <button
             onClick={handleExploreClick}
             className="bg-white rounded-full text-xs md:text-sm px-4 py-1 font-medium text-orange-500 hover:bg-gray-50 transition-colors"
@@ -31,8 +32,11 @@ const Banner = () => {
           </button>
         </div>
       </div>
+      </div>
     </div>
   );
+
+
 };
 
 export default Banner;

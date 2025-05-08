@@ -63,8 +63,8 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="bg-white text-custom-blue shadow-md">
-      <div className="container mx-auto flex flex-col items-center justify-between gap-4 p-4 sm:flex-row">
+    <header className="bg-white text-custom-blue shadow-md w-full">
+      <div className="w-full max-w-screen-lg mx-auto flex flex-col items-center justify-between gap-4 p-4 sm:flex-row">
         <div className="p-0">
           <Link href="/" aria-label="Go to home page">
             <Image

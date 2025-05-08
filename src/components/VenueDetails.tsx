@@ -410,7 +410,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
   // Loading state
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 flex justify-center items-center h-64">
+      <div className="max-w-screen-lg mx-auto px-4 py-8 flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-custom-blue"></div>
       </div>
     );
@@ -419,7 +419,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
   // Error state
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="max-w-screen-lg mx-auto px-4 py-8">
         <Alert variant="destructive">
           <AlertTitle>Error loading venue</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
@@ -439,7 +439,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
   // Not found state
   if (!venue) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="max-w-screen-lg mx-auto px-4 py-8">
         <Alert>
           <AlertTitle>Venue not found</AlertTitle>
           <AlertDescription>
@@ -463,7 +463,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
       : { url: "/asset/placeholder-venue.jpg", alt: "No image available" };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="max-w-screen-lg mx-auto px-4 py-8">
       {/* Top navigation bar */}
       <div className="flex justify-between items-center mb-6">
         <Button
