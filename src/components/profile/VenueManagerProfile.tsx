@@ -114,11 +114,36 @@ const defaultVenueValues: VenueFormValues = {
   },
 };
 
+// Define an interface for the venue booking within venue data
+type VenueBooking = {
+  id: string;
+  dateFrom: string;
+  dateTo: string;
+  guests: number;
+  created: string;
+  updated?: string;
+  customer?: {
+    name: string;
+    email: string;
+    bio?: string | null;
+    avatar?: {
+      url: string;
+      alt: string;
+    };
+    banner?: {
+      url: string;
+      alt: string;
+    };
+  };
+};
+
 export default function VenueManagerProfile() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [venues, setVenues] = useState<Venue[]>([]);
-  const [venueBookings, setVenueBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [bookingsError, setBookingsError] = useState<string | null>(null);
   const [showEditForm, setShowEditForm] = useState(false);
   const [formData, setFormData] = useState({
     bio: "",
@@ -150,7 +175,7 @@ export default function VenueManagerProfile() {
         }
 
         setUserData(user);
-        await fetchManagerVenues();
+        await fetchManagerVenues(user.name);
       } catch (error) {
         console.error("Error loading profile data:", error);
         toast({
@@ -166,53 +191,14 @@ export default function VenueManagerProfile() {
     fetchData();
   }, [router, toast]);
 
-  useEffect(() => {
-    if (venues.length > 0) {
-      fetchVenueBookings();
-    }
-  }, [venues]);
-
-  const fetchVenueBookings = async () => {
-    try {
-      const storedBookings = localStorage.getItem("bookings");
-      if (!storedBookings) {
-        return;
-      }
-
-      const allBookings = JSON.parse(storedBookings) as Booking[];
-
-      // Get all venue IDs owned by this manager
-      const managerVenueIds = venues.map((venue) => venue.id);
-
-      // Filter bookings to only those for venues owned by this manager
-      const relevantBookings = allBookings.filter((booking) => {
-        return managerVenueIds.includes(booking.venue.id);
-      });
-
-      // Sort bookings by date (most recent first)
-      relevantBookings.sort((a, b) => {
-        return new Date(b.dateFrom).getTime() - new Date(a.dateFrom).getTime();
-      });
-
-      setVenueBookings(relevantBookings);
-    } catch (error) {
-      console.error("Error fetching venue bookings:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load venue bookings",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const fetchManagerVenues = async () => {
+  const fetchManagerVenues = async (userName: string) => {
     try {
       setLoading(true);
+      setBookingsLoading(true);
+      setBookingsError(null);
 
       // Get authentication data
       const token = localStorage.getItem("accessToken");
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const userName = user.name;
 
       if (!token || !userName) {
         toast({
@@ -224,21 +210,55 @@ export default function VenueManagerProfile() {
         return;
       }
 
-      // Prepare auth token
-      // Try to fetch venues from the profile endpoint
+      // Fetch venues with bookings included
       try {
         const profileResponse = await fetchWithAuth(
-          `https://v2.api.noroff.dev/holidaze/profiles/${userName}?_venues=true`,
-          {
-            method: "GET",
-          }
+          `https://v2.api.noroff.dev/holidaze/profiles/${userName}/venues?_bookings=true&sort=created&sortOrder=desc&_owner=true`
         );
 
         if (profileResponse.ok) {
-          const profileData = await profileResponse.json();
-          if (profileData.data?.venues && profileData.data.venues.length > 0) {
-            setVenues(profileData.data.venues);
-            return;
+          const data = await profileResponse.json();
+          console.log("Venues with bookings data:", data);
+
+          if (data.data && Array.isArray(data.data)) {
+            setVenues(data.data);
+
+            // Extract all bookings from venues
+            const allBookings: Booking[] = [];
+            data.data.forEach((venue: Venue) => {
+              if (venue.bookings && Array.isArray(venue.bookings)) {
+                venue.bookings.forEach((booking: VenueBooking) => {
+                  // Add venue data to booking for display
+                  allBookings.push({
+                    ...booking,
+                    venue: {
+                      id: venue.id,
+                      name: venue.name,
+                      description: venue.description,
+                      media: venue.media,
+                      price: venue.price,
+                      maxGuests: venue.maxGuests,
+                      rating: venue.rating,
+                      location: venue.location,
+                      meta: venue.meta,
+                      owner: venue.owner,
+                    },
+                  });
+                });
+              }
+            });
+
+            // Sort bookings by date (upcoming first)
+            const sortedBookings = allBookings.sort(
+              (a, b) =>
+                new Date(a.dateFrom).getTime() - new Date(b.dateFrom).getTime()
+            );
+
+            setBookings(sortedBookings);
+            setBookingsLoading(false);
+          } else {
+            setVenues([]);
+            setBookings([]);
           }
         } else {
           const errorData = await profileResponse.json();
@@ -246,59 +266,16 @@ export default function VenueManagerProfile() {
             errorData.errors?.[0]?.message ||
             errorData.message ||
             `Error: ${profileResponse.status}`;
-          console.error("Profile endpoint error:", errorMessage);
-        }
-      } catch (profileError) {
-        console.error("Error fetching from profile endpoint:", profileError);
-      }
-
-      // Fallback: fetch all venues, then filter to only show user's venues
-      try {
-        const allVenuesResponse = await fetch(
-          "https://v2.api.noroff.dev/holidaze/venues"
-        );
-
-        if (allVenuesResponse.ok) {
-          const allVenuesData = await allVenuesResponse.json();
-
-          // Filter venues where the current user is the owner
-          const myVenues =
-            allVenuesData.data?.filter(
-              (venue: {
-                owner?: {
-                  name: string;
-                  email: string;
-                };
-              }) => {
-                if (venue.owner) {
-                  return (
-                    venue.owner.name === userName ||
-                    venue.owner.email === user.email
-                  );
-                }
-                return false;
-              }
-            ) || [];
-
-          setVenues(myVenues);
-        } else {
-          const errorData = await allVenuesResponse.json();
-          const errorMessage =
-            errorData.errors?.[0]?.message ||
-            errorData.message ||
-            `Error: ${allVenuesResponse.status}`;
           throw new Error(errorMessage);
         }
-      } catch (allVenuesError) {
-        console.error("Error in fallback fetch:", allVenuesError);
-        toast({
-          title: "Error Loading Venues",
-          description:
-            allVenuesError instanceof Error
-              ? allVenuesError.message
-              : "Failed to load venues",
-          variant: "destructive",
-        });
+      } catch (profileError) {
+        console.error("Error fetching venues with bookings:", profileError);
+        setBookingsError(
+          profileError instanceof Error
+            ? profileError.message
+            : "Failed to load bookings"
+        );
+        // Continue as we may still have venues data
       }
     } catch (error) {
       console.error("Error in venue fetching process:", error);
@@ -310,6 +287,7 @@ export default function VenueManagerProfile() {
       });
     } finally {
       setLoading(false);
+      setBookingsLoading(false);
     }
   };
 
@@ -981,58 +959,106 @@ export default function VenueManagerProfile() {
           Upcoming Bookings for My Venues
         </h2>
 
-        {venueBookings.length === 0 ? (
+        {bookingsLoading ? (
+          <div className="flex justify-center items-center h-40">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        ) : bookingsError ? (
+          <div className="text-center py-8 bg-red-50 rounded-lg">
+            <p className="text-red-500">{bookingsError}</p>
+            <Button
+              variant="outline"
+              onClick={() => userData && fetchManagerVenues(userData.name)}
+              className="mt-4"
+            >
+              Retry
+            </Button>
+          </div>
+        ) : bookings.length === 0 ? (
           <div className="text-center py-8 bg-gray-50 rounded-lg">
+            <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <p className="text-gray-500">No bookings for your venues yet.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {venueBookings.map((booking) => (
-              <div
-                key={booking.id}
-                className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold text-primary">
-                      {booking.venue.name}
-                    </h3>
-                    <div className="flex items-center text-sm text-gray-600 mt-1">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      <span>
-                        {new Date(booking.dateFrom).toLocaleDateString(
-                          "en-US",
-                          { month: "short", day: "numeric" }
-                        )}{" "}
-                        -{" "}
-                        {new Date(booking.dateTo).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-sm mt-2">
-                      <span className="font-medium">Guest:</span>{" "}
-                      {booking.userId}
-                    </p>
-                    <p className="text-sm">
-                      <span className="font-medium">Guests:</span>{" "}
-                      {booking.guests}
-                    </p>
-                  </div>
+            {bookings.map((booking) => {
+              // Determine if booking is upcoming, current, or past
+              const now = new Date();
+              const bookingStart = new Date(booking.dateFrom);
+              const bookingEnd = new Date(booking.dateTo);
 
-                  <div className="text-right">
-                    <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                      Confirmed
-                    </span>
-                    <p className="text-sm mt-2 font-medium">
-                      Booked on {new Date(booking.created).toLocaleDateString()}
-                    </p>
+              let status = "Upcoming";
+              let statusColor = "bg-blue-100 text-blue-800";
+
+              if (now > bookingEnd) {
+                status = "Completed";
+                statusColor = "bg-gray-100 text-gray-800";
+              } else if (now >= bookingStart && now <= bookingEnd) {
+                status = "Active";
+                statusColor = "bg-green-100 text-green-800";
+              } else if (
+                bookingStart.getTime() - now.getTime() <
+                7 * 24 * 60 * 60 * 1000
+              ) {
+                status = "Soon";
+                statusColor = "bg-yellow-100 text-yellow-800";
+              }
+
+              return (
+                <div
+                  key={booking.id}
+                  className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold text-primary">
+                        {booking.venue.name}
+                      </h3>
+                      <div className="flex items-center text-sm text-gray-600 mt-1">
+                        <Calendar className="w-4 h-4 mr-1" />
+                        <span>
+                          {new Date(booking.dateFrom).toLocaleDateString(
+                            "en-US",
+                            { month: "short", day: "numeric" }
+                          )}{" "}
+                          -{" "}
+                          {new Date(booking.dateTo).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }
+                          )}
+                        </span>
+                      </div>
+                      <p className="text-sm mt-2">
+                        <span className="font-medium">Guest:</span>{" "}
+                        {booking.customer?.name ||
+                          booking.userId ||
+                          "Anonymous"}
+                      </p>
+                      <p className="text-sm">
+                        <span className="font-medium">Guests:</span>{" "}
+                        {booking.guests}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <span
+                        className={`inline-block ${statusColor} text-xs px-2 py-1 rounded`}
+                      >
+                        {status}
+                      </span>
+                      <p className="text-sm mt-2 font-medium">
+                        Booked on{" "}
+                        {new Date(booking.created).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

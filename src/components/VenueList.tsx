@@ -57,7 +57,7 @@ const VenueList = () => {
         }
       }
 
-      const apiUrl = `https://v2.api.noroff.dev/holidaze/venues?sort=created&sortOrder=desc`;
+      const apiUrl = `https://v2.api.noroff.dev/holidaze/venues?sort=created&sortOrder=desc&_owner=true`;
 
       // Then fetch from API with cache busting
       const response = await fetch(apiUrl, {

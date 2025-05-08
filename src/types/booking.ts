@@ -67,4 +67,17 @@ export interface Booking {
   updated?: string;
   venue: Venue;
   userId?: string; // User identifier (email) for filtering bookings by user
+  customer?: {
+    name: string;
+    email: string;
+    bio?: string | null;
+    avatar?: {
+      url: string;
+      alt: string;
+    };
+    banner?: {
+      url: string;
+      alt: string;
+    };
+  };
 }
