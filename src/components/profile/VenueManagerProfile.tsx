@@ -11,6 +11,13 @@ import {
   X,
   Calendar,
   Trash2,
+  Navigation,
+  Wifi,
+  Car,
+  Coffee,
+  PawPrint,
+  Star,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { Venue, Booking } from "@/types/booking";
@@ -497,7 +504,7 @@ export default function VenueManagerProfile() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-screen-lg mx-auto px-4 py-8">
       {/* Profile Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
         <div className="flex items-center">
@@ -898,7 +905,7 @@ export default function VenueManagerProfile() {
             {venues.map((venue) => (
               <div
                 key={venue.id}
-                className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col"
+                className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full"
               >
                 <div className="relative h-40 w-full">
                   {venue.media && venue.media.length > 0 ? (
@@ -914,23 +921,73 @@ export default function VenueManagerProfile() {
                     </div>
                   )}
                 </div>
-                <div className="p-4">
+                <div className="p-4 flex flex-col flex-grow">
                   <h3
-                    className="font-semibold text-primary truncate"
+                    className="text-lg font-semibold text-custom-blue truncate"
                     title={venue.name}
                   >
                     {venue.name}
                   </h3>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-orange-500 font-medium">
-                      NOK {venue.price}
+
+                  <div className="flex items-center mt-1 text-sm text-gray-600">
+                    <Navigation className="w-4 h-4 mr-1 flex-shrink-0 text-custom-blue" />
+                    <span className="truncate">
+                      {venue.location?.city || ""}
+                      {venue.location?.city && venue.location?.country
+                        ? ", "
+                        : ""}
+                      {venue.location?.country || "Location not specified"}
                     </span>
-                    <div className="flex text-yellow-500">
-                      {"★".repeat(Math.floor(venue.rating || 0))}
-                      {"☆".repeat(5 - Math.floor(venue.rating || 0))}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {venue.meta?.wifi && (
+                      <span className="inline-flex items-center bg-gray-100 px-2 py-1 rounded text-xs text-custom-blue">
+                        <Wifi className="w-3 h-3 mr-1" />
+                        WiFi
+                      </span>
+                    )}
+                    {venue.meta?.parking && (
+                      <span className="inline-flex items-center bg-gray-100 px-2 py-1 rounded text-xs text-custom-blue">
+                        <Car className="w-3 h-3 mr-1" />
+                        Parking
+                      </span>
+                    )}
+                    {venue.meta?.breakfast && (
+                      <span className="inline-flex items-center bg-gray-100 px-2 py-1 rounded text-xs text-custom-blue">
+                        <Coffee className="w-3 h-3 mr-1" />
+                        Breakfast
+                      </span>
+                    )}
+                    {venue.meta?.pets && (
+                      <span className="inline-flex items-center bg-gray-100 px-2 py-1 rounded text-xs text-custom-blue">
+                        <PawPrint className="w-3 h-3 mr-1" />
+                        Pets
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-custom-orange">
+                        NOK {venue.price.toLocaleString()}
+                      </span>
+                      <span className="text-sm text-gray-500">per night</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                      <span className="text-sm font-medium">
+                        {venue.rating?.toFixed(1) || "0.0"}
+                      </span>
                     </div>
                   </div>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
+
+                  <div className="flex items-center mt-2 text-sm text-gray-600">
+                    <Users className="w-4 h-4 mr-1 text-custom-blue" />
+                    <span>Up to {venue.maxGuests} guests</span>
+                  </div>
+
+                  <div className="mt-auto pt-4 grid grid-cols-2 gap-2">
                     <Button
                       onClick={() => handleDeleteVenue(venue.id)}
                       variant="destructive"

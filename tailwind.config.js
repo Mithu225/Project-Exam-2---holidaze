@@ -7,9 +7,9 @@ module.exports = {
       colors: {
         "custom-grey": "#E6E6E6",
         "custom-blue": "#116BAC",
-        "custom-orange": "#F79727",
-        "custom-gray" : "#949494",
-        
+        "custom-orange": "#AC5F06",
+        "custom-gray": "#595959",
+
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { Button } from "@/components/ui/button";
 
 export default function Header() {
   const [userName, setUserName] = useState<string>("");
@@ -68,8 +69,8 @@ export default function Header() {
         <div className="p-0">
           <Link href="/" aria-label="Go to home page">
             <Image
-              src="/asset/holidaze-header-logo.png"
-              alt="Holidaze Logo"
+              src="/asset/header-logo.png"
+              alt="Venue Logo"
               height={170}
               width={224}
               className="cursor-pointer"
@@ -103,13 +104,15 @@ export default function Header() {
 
             {isLoggedIn && (
               <li>
-                <button
+                <Button
                   onClick={handleLogout}
-                  className="flex items-center gap-1 bg-white border border-custom-blue text-custom-blue rounded-md px-3 py-1 hover:bg-gray-50 transition-colors text-sm"
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1 text-custom-blue border-custom-blue"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Log Out</span>
-                </button>
+                </Button>
               </li>
             )}
           </ul>

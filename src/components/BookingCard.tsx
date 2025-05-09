@@ -2,8 +2,15 @@
 import Image from "next/image";
 import { Booking } from "@/types/booking";
 import Link from "next/link";
-import { CalendarDays, Users, Eye, Trash2, CreditCard } from "lucide-react";
+import {
+  CalendarDays,
+  Users,
+  Trash2,
+  CreditCard,
+  PlusIcon,
+} from "lucide-react";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
 
 interface BookingCardProps {
   booking: Booking;
@@ -106,12 +113,12 @@ const BookingCard = ({ booking, onDelete }: BookingCardProps) => {
 
           <div className="grid grid-cols-2 gap-2">
             <Link href="/#venues">
-              <button className="w-full flex items-center justify-center bg-custom-blue text-white py-2 px-3 rounded-md hover:bg-blue-700 transition-colors">
-                <Eye className="w-4 h-4 mr-1" />
+              <Button variant="default" className="w-full">
+                <PlusIcon className="w-4 h-4 mr-1" />
                 Add New
-              </button>
+              </Button>
             </Link>
-            <button
+            <Button
               onClick={(e) => {
                 e.preventDefault();
                 if (
@@ -122,11 +129,12 @@ const BookingCard = ({ booking, onDelete }: BookingCardProps) => {
                   onDelete();
                 }
               }}
-              className="w-full flex items-center justify-center bg-white border border-custom-orange text-custom-orange py-2 px-3 rounded-md hover:bg-red-50 transition-colors"
+              variant="destructive"
+              className="w-full"
             >
               <Trash2 className="w-4 h-4 mr-1" />
               Delete
-            </button>
+            </Button>
           </div>
         </div>
       </div>

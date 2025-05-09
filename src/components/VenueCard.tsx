@@ -89,7 +89,7 @@ const VenueCard = ({ venue }: VenueCardProps) => {
 
         <div className="mt-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-custom-orange">
+            <span className="text-lg font-bold text-black">
               {formatPrice(venue.price)}
             </span>
             <span className="text-sm text-gray-500">per night</span>

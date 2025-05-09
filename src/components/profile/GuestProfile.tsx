@@ -1,14 +1,42 @@
-'use client';
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
-import { User, Mail, Calendar, Edit } from 'lucide-react';
-import { useRouter } from 'next/router';
-import BookingList from '../BookingList';
+"use client";
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import {
+  User,
+  Mail,
+  Calendar,
+  Edit,
+  X,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
+import { useRouter } from "next/router";
+import BookingList from "../BookingList";
+import {
+  useProfileUpdate,
+  ProfileFormData,
+  profileUpdateSchema,
+} from "@/hooks/useProfileUpdate";
+import { useToast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 interface GuestData {
   name: string;
   email: string;
-  bio?: string;
+  bio?: string | null;
   role?: string;
   avatar?: {
     url: string;
@@ -24,48 +52,61 @@ export default function GuestProfile() {
   const [guestData, setGuestData] = useState<GuestData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditForm, setShowEditForm] = useState(false);
-  const [formData, setFormData] = useState({
-    bio: '',
-    avatarUrl: '',
-    bannerUrl: ''
-  });
+
   const router = useRouter();
+  const { toast } = useToast();
+  const { updateProfile, isLoading, error } = useProfileUpdate();
+
+  // Setup form with react-hook-form and zod validation
+  const form = useForm<ProfileFormData>({
+    resolver: zodResolver(profileUpdateSchema),
+    defaultValues: {
+      bio: "",
+      avatarUrl: "",
+      bannerUrl: "",
+    },
+  });
 
   useEffect(() => {
+    const storedGuest = localStorage.getItem("user");
+    const token = localStorage.getItem("accessToken");
 
-    const storedGuest = localStorage.getItem('user'); // Storage key remains 'user' for compatibility
-    const token = localStorage.getItem('accessToken');
-    
     if (!storedGuest || !token) {
-      router.push('/login');
+      router.push("/login");
       return;
     }
 
     try {
       const guest = JSON.parse(storedGuest);
       setGuestData(guest);
-   
-      setFormData({
-        bio: guest.bio || '',
-        avatarUrl: guest.avatar?.url || '',
-        bannerUrl: guest.banner?.url || ''
+
+      // Initialize form with guest profile data
+      form.reset({
+        bio: guest.bio || "", // Convert null/undefined to empty string
+        avatarUrl: guest.avatar?.url || "",
+        bannerUrl: guest.banner?.url || "",
       });
     } catch (error) {
-      console.error('Failed to parse guest data:', error);
+      console.error("Failed to parse guest data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load profile data",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
-  }, [router]);
-
-  // Logout functionality moved to Header component
+  }, [router, toast, form]);
 
   const handleEditFormOpen = () => {
-  
-    setFormData({
-      bio: guestData?.bio || '',
-      avatarUrl: '',
-      bannerUrl: ''
-    });
+    // Reset form data with current values
+    if (guestData) {
+      form.reset({
+        bio: guestData.bio || "", // Convert null/undefined to empty string
+        avatarUrl: guestData.avatar?.url || "",
+        bannerUrl: guestData.banner?.url || "",
+      });
+    }
     setShowEditForm(true);
   };
 
@@ -73,44 +114,68 @@ export default function GuestProfile() {
     setShowEditForm(false);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const onSubmit = async (data: ProfileFormData) => {
     if (!guestData) return;
-    
-    
-    const updatedGuestData = {
-      ...guestData,
-      bio: formData.bio,
-  
-      avatar: formData.avatarUrl ? {
-        url: formData.avatarUrl,
-        alt: 'Guest avatar'
-      } : guestData.avatar,
-      banner: formData.bannerUrl ? {
-        url: formData.bannerUrl,
-        alt: 'Guest banner'
-      } : guestData.banner
+
+    // Prepare the data for the API
+    const updateData = {
+      bio: data.bio?.trim() === "" ? null : data.bio,
+      ...(data.avatarUrl && {
+        avatar: {
+          url: data.avatarUrl,
+          alt: "Guest avatar",
+        },
+      }),
+      ...(data.bannerUrl && {
+        banner: {
+          url: data.bannerUrl,
+          alt: "Guest banner",
+        },
+      }),
     };
-    
-   
-    localStorage.setItem('user', JSON.stringify(updatedGuestData));
-    setGuestData(updatedGuestData);
-    setShowEditForm(false);
+
+    // Update profile through the API
+    const success = await updateProfile(guestData.name, updateData);
+
+    if (success) {
+      // Show success toast
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
+        variant: "default",
+      });
+
+      // Update local state with new data
+      setGuestData((prev) => {
+        if (!prev) return null;
+
+        return {
+          ...prev,
+          bio: data.bio?.trim() === "" ? null : data.bio,
+          avatar: data.avatarUrl
+            ? {
+                url: data.avatarUrl,
+                alt: "Guest avatar",
+              }
+            : prev.avatar,
+          banner: data.bannerUrl
+            ? {
+                url: data.bannerUrl,
+                alt: "Guest banner",
+              }
+            : prev.banner,
+        };
+      });
+
+      // Close the form
+      setShowEditForm(false);
+    }
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-custom-blue"></div>
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
@@ -118,34 +183,39 @@ export default function GuestProfile() {
   if (!guestData) {
     return (
       <div className="text-center py-10">
-        <p className="text-red-500">Please log in to view your guest profile.</p>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Authentication Required</AlertTitle>
+          <AlertDescription>
+            Please log in to view your profile.
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-    
-      <div className="relative w-full h-48 mb-16 rounded-lg  bg-white">
+    <div className="max-w-screen-lg mx-auto px-4 py-8">
+      {/* Banner and Avatar */}
+      <div className="relative w-full h-48 mb-16 rounded-lg bg-white">
         {guestData.banner ? (
-          <Image 
-            src={guestData.banner.url} 
-            alt={guestData.banner.alt || 'Profile banner'} 
+          <Image
+            src={guestData.banner.url}
+            alt={guestData.banner.alt || "Profile banner"}
             fill
             className="object-cover rounded-2xl"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-r from-custom-blue to-blue-400"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-400 rounded-2xl"></div>
         )}
-        
-     
-        <div className="absolute -bottom-12 left-6 w-24 h-24">
+
+        <div className="absolute -bottom-12 left-6 w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md">
           {guestData.avatar ? (
-            <Image 
+            <Image
               src={guestData.avatar.url}
-              alt={guestData.avatar.alt || 'Avatar'}
+              alt={guestData.avatar.alt || "Avatar"}
               fill
-              className="object-cover rounded-full"
+              className="object-cover"
             />
           ) : (
             <div className="flex items-center justify-center h-full bg-gray-200">
@@ -155,10 +225,10 @@ export default function GuestProfile() {
         </div>
       </div>
 
-   
+      {/* Profile Info */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-custom-blue">{guestData.name}</h1>
+          <h1 className="text-2xl font-bold text-primary">{guestData.name}</h1>
           <div className="text-gray-600 mt-1 mb-3 max-w-xs flex">
             {guestData.bio ? (
               <>
@@ -167,110 +237,130 @@ export default function GuestProfile() {
                 <span className="italic flex-none">&rdquo;</span>
               </>
             ) : (
-              <span className="text-gray-400">Your Bio shows here</span>
+              <span className="text-custom-gray">Your Bio shows here</span>
             )}
           </div>
-          <div className="flex items-center text-custom-gray mt-1">
+          <div className="flex items-center text-muted-foreground mt-1">
             <Mail className="w-4 h-4 mr-1" />
             <span>{guestData.email}</span>
           </div>
-          <div className="flex items-center text-custom-gray mt-1">
+          <div className="flex items-center text-muted-foreground mt-1">
             <Calendar className="w-4 h-4 mr-1" />
-            <span>Member since April 2025 as a <span className="capitalize">{guestData.role || 'Guest'}</span></span>
+            <span>
+              Member since April 2025 as a{" "}
+              <span className="capitalize">{guestData.role || "Guest"}</span>
+            </span>
           </div>
         </div>
         <div className="flex space-x-2 mt-4 md:mt-0">
-          <button
-            className="flex items-center px-4 py-2 bg-custom-blue hover:bg-blue-600 rounded-md text-white transition-colors"
+          <Button
+            variant="customBlue"
             onClick={handleEditFormOpen}
+            className="flex items-center"
           >
             <Edit className="w-4 h-4 mr-2" />
             Edit Profile
-          </button>
+          </Button>
         </div>
       </div>
 
-  
+      {/* Edit Profile Form */}
       {showEditForm && (
-        <div className="mt-8 p-6 bg-white rounded-lg shadow-md">
+        <div className="mt-8 p-6 bg-card rounded-lg shadow-md border">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-custom-blue">Edit Profile</h2>
-            <button 
-              onClick={handleEditFormClose}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              ✕
-            </button>
+            <h2 className="text-xl font-semibold text-primary">Edit Profile</h2>
+            <Button onClick={handleEditFormClose} variant="ghost" size="sm">
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
-                Your Bio
-              </label>
-              <textarea
-                id="bio"
+
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
                 name="bio"
-                value={formData.bio}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-custom-blue"
-                rows={3}
-                placeholder="Tell us a bit about yourself"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Your Bio</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Tell us a bit about yourself"
+                        className="resize-none"
+                        rows={3}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            
-            <div className="mb-4">
-              <label htmlFor="avatarUrl" className="block text-sm font-medium text-gray-700 mb-1">
-                Avatar URL
-              </label>
-              <input
-                type="text"
-                id="avatarUrl"
+
+              <FormField
+                control={form.control}
                 name="avatarUrl"
-                value={formData.avatarUrl}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-custom-blue"
-                placeholder="Enter avatar image URL"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Avatar URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter avatar image URL" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            
-            <div className="mb-4">
-              <label htmlFor="bannerUrl" className="block text-sm font-medium text-gray-700 mb-1">
-                Banner URL
-              </label>
-              <input
-                type="text"
-                id="bannerUrl"
+
+              <FormField
+                control={form.control}
                 name="bannerUrl"
-                value={formData.bannerUrl}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-custom-blue"
-                placeholder="Enter banner image URL"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Banner URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter banner image URL" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            
-            <div className="flex space-x-3">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-custom-blue hover:bg-blue-600 text-white rounded-md transition-colors"
-              >
-                Save Changes
-              </button>
-              <button
-                type="button"
-                onClick={handleEditFormClose}
-                className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-md transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+
+              <div className="flex space-x-3 pt-2">
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleEditFormClose}
+                  disabled={isLoading}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </Form>
         </div>
       )}
 
-    
+      {/* Bookings List */}
       <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">My Bookings</h2>
+        <h2 className="text-xl font-semibold mb-4 text-gray-800">
+          My Bookings
+        </h2>
         <BookingList />
       </div>
     </div>

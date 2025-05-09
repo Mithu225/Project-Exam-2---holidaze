@@ -8,8 +8,8 @@ export default function Footer() {
     >
       <div className="p-0">
         <Image
-          src="/asset/holidaze-footer-logo.png"
-          alt="Holidaze Logo"
+          src="/asset/footer-logo.png"
+          alt="Venue Logo"
           height={100}
           width={100}
         />
