@@ -216,7 +216,11 @@ const VenueList = () => {
         </div>
 
         <div className="relative">
+          <label htmlFor="venue-search" className="sr-only">
+            Search Venues
+          </label>
           <input
+            id="venue-search"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

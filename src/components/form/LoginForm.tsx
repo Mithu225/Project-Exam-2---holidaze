@@ -25,6 +25,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -91,6 +92,9 @@ export default function LoginForm() {
                       {...field}
                     />
                   </FormControl>
+                  <FormDescription>
+                    Enter your Noroff student email address
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -109,6 +113,9 @@ export default function LoginForm() {
                       {...field}
                     />
                   </FormControl>
+                  <FormDescription>
+                    Enter your password (minimum 8 characters)
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

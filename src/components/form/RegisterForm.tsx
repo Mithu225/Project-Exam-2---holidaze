@@ -13,6 +13,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -171,6 +172,9 @@ export default function RegisterForm() {
                     {...field}
                   />
                 </FormControl>
+                <FormDescription>
+                  Enter your full name (letters, numbers, and underscore only)
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -189,6 +193,9 @@ export default function RegisterForm() {
                     {...field}
                   />
                 </FormControl>
+                <FormDescription>
+                  Enter your Noroff student email address
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -203,6 +210,9 @@ export default function RegisterForm() {
                 <FormControl>
                   <Input type="password" placeholder="••••••••" {...field} />
                 </FormControl>
+                <FormDescription>
+                  Create a password (minimum 8 characters)
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -220,17 +230,23 @@ export default function RegisterForm() {
                     {...field}
                   />
                 </FormControl>
+                <FormDescription>
+                  Tell us about yourself (maximum 160 characters)
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
 
           {role === "venueManager" && (
-            <div className="bg-blue-50 p-3 rounded-md text-sm text-blue-700 mt-4">
+            <div
+              className="bg-blue-50 p-3 rounded-md text-sm text-blue-700 mt-4"
+              role="alert"
+            >
               <p className="font-medium">
-                You're registering as a Venue Manager
+                You&apos;re registering as a Venue Manager
               </p>
-              <p>You'll be able to create and manage venue listings.</p>
+              <p>You&apos;ll be able to create and manage venue listings.</p>
             </div>
           )}
 
@@ -241,7 +257,10 @@ export default function RegisterForm() {
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2
+                  className="mr-2 h-4 w-4 animate-spin"
+                  aria-hidden="true"
+                />
                 Creating Account...
               </>
             ) : (

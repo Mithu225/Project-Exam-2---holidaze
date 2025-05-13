@@ -26,7 +26,7 @@ const Banner = () => {
             </p>
             <button
               onClick={handleExploreClick}
-              className="bg-white rounded-full text-xs md:text-sm px-4 py-1 font-medium text-orange-500 hover:bg-gray-50 transition-colors"
+              className="bg-white rounded-full text-xs md:text-sm px-4 py-1 font-medium text-primary font-bold hover:bg-gray-50 transition-colors"
             >
               Explore now
             </button>
