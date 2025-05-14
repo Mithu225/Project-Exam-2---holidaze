@@ -8,7 +8,6 @@ import {
   Edit,
   Plus,
   Home,
-  X,
   Calendar,
   Trash2,
   Navigation,
@@ -22,18 +21,6 @@ import {
 import Link from "next/link";
 import { Venue, Booking } from "@/types/booking";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -42,10 +29,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { fetchWithAuth, createVenue } from "@/utils/api";
+import { fetchWithAuth } from "@/utils/api";
+import CreateVenueForm from "@/components/form/CreateVenueForm";
+import ManagerEditProfileForm from "@/components/form/ManagerEditProfileForm";
 
 interface UserData {
   name: string;
@@ -61,65 +47,6 @@ interface UserData {
   };
   role?: string;
 }
-
-// Schema for venue creation form
-const venueFormSchema = z.object({
-  name: z.string().min(3, "Title must be at least 3 characters"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
-  price: z.coerce.number().min(1, "Price must be greater than 0"),
-  maxGuests: z.coerce.number().min(1, "Maximum guests must be at least 1"),
-  media: z
-    .array(
-      z.object({
-        url: z.string().url("Must be a valid URL"),
-        alt: z.string().optional().default(""),
-      })
-    )
-    .optional()
-    .default([]),
-  location: z.object({
-    address: z.string().optional(),
-    city: z.string().optional(),
-    zip: z.string().optional(),
-    country: z.string().optional(),
-    continent: z.string().optional().default("Unknown"),
-    lat: z.number().optional().default(0),
-    lng: z.number().optional().default(0),
-  }),
-  meta: z.object({
-    wifi: z.boolean().default(false),
-    parking: z.boolean().default(false),
-    breakfast: z.boolean().default(false),
-    pets: z.boolean().default(false),
-  }),
-});
-
-// Type for the form data
-type VenueFormValues = z.infer<typeof venueFormSchema>;
-
-// Default form values
-const defaultVenueValues: VenueFormValues = {
-  name: "",
-  description: "",
-  price: 0,
-  maxGuests: 1,
-  media: [{ url: "", alt: "" }],
-  location: {
-    address: "",
-    city: "",
-    country: "",
-    zip: "",
-    continent: "Unknown",
-    lat: 0,
-    lng: 0,
-  },
-  meta: {
-    wifi: false,
-    parking: false,
-    breakfast: false,
-    pets: false,
-  },
-};
 
 // Define an interface for the venue booking within venue data
 type VenueBooking = {
@@ -160,15 +87,9 @@ export default function VenueManagerProfile() {
   const router = useRouter();
   const { toast } = useToast();
 
-  // Form for creating venues
-  const venueForm = useForm<VenueFormValues>({
-    resolver: zodResolver(venueFormSchema),
-    defaultValues: defaultVenueValues,
-  });
-
   // State for venue creation dialog
   const [venueDialogOpen, setVenueDialogOpen] = useState(false);
-  const [isCreatingVenue, setIsCreatingVenue] = useState(false);
+  const [isCreatingVenue] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -310,16 +231,6 @@ export default function VenueManagerProfile() {
     setShowEditForm(false);
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
   const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -404,82 +315,6 @@ export default function VenueManagerProfile() {
     }
   };
 
-  const handleCreateVenue = async (data: VenueFormValues) => {
-    setIsCreatingVenue(true);
-
-    try {
-      // Get authentication token
-      const token = localStorage.getItem("accessToken");
-      if (!token) {
-        toast({
-          title: "Authentication Required",
-          description: "Please login to create venues",
-          variant: "destructive",
-        });
-        router.push("/login");
-        return;
-      }
-
-      // Ensure we have at least one media item with a valid URL
-      const validMedia =
-        data.media &&
-        data.media.length > 0 &&
-        data.media.some((m) => m.url.trim() !== "")
-          ? data.media.filter((m) => m.url.trim() !== "")
-          : [{ url: "/asset/placeholder-venue.jpg", alt: data.name }];
-
-      // Prepare venue data
-      const venueData = {
-        ...data,
-        media: validMedia,
-      };
-
-      // Use the new createVenue function
-      const result = await createVenue(venueData);
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to create venue");
-      }
-
-      // Add the new venue to the list and refresh venues
-      setVenues((prevVenues) => [result.data, ...prevVenues]);
-
-      // Close the dialog and reset form
-      setVenueDialogOpen(false);
-      venueForm.reset(defaultVenueValues);
-
-      toast({
-        title: "Success!",
-        description: "Venue created successfully",
-      });
-    } catch (error) {
-      console.error("Error creating venue:", error);
-      toast({
-        title: "Error Creating Venue",
-        description:
-          error instanceof Error ? error.message : "Failed to create venue",
-        variant: "destructive",
-      });
-    } finally {
-      setIsCreatingVenue(false);
-    }
-  };
-
-  // Helper to add a new media field
-  const addMediaField = () => {
-    const currentMedia = venueForm.getValues("media") || [];
-    venueForm.setValue("media", [...currentMedia, { url: "", alt: "" }]);
-  };
-
-  // Helper to remove a media field
-  const removeMediaField = (index: number) => {
-    const currentMedia = venueForm.getValues("media") || [];
-    venueForm.setValue(
-      "media",
-      currentMedia.filter((_, i) => i !== index)
-    );
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -553,267 +388,20 @@ export default function VenueManagerProfile() {
                 <Plus className="mr-2 h-4 w-4" /> Add Venue
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className=" sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create a New Venue</DialogTitle>
+                <DialogTitle className="text-custom-blue text-center">
+                  Create a New Venue
+                </DialogTitle>
               </DialogHeader>
-              <Form {...venueForm}>
-                <form
-                  onSubmit={venueForm.handleSubmit(handleCreateVenue)}
-                  className="space-y-6"
-                >
-                  <FormField
-                    control={venueForm.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Venue Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter venue name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={venueForm.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Describe your venue"
-                            className="resize-none"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={venueForm.control}
-                      name="price"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Price per night</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={1}
-                              placeholder="Price"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={venueForm.control}
-                      name="maxGuests"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Max Guests</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={1}
-                              placeholder="Max guests"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="mb-2 block">Media</Label>
-                    {venueForm.watch("media")?.map((_, index) => (
-                      <div key={index} className="flex gap-2 mb-2">
-                        <FormField
-                          control={venueForm.control}
-                          name={`media.${index}.url`}
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormControl>
-                                <Input placeholder="Image URL" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => removeMediaField(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={addMediaField}
-                      className="mt-1"
-                    >
-                      <Plus className="mr-2 h-4 w-4" /> Add Image
-                    </Button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="font-medium mb-2">Location Details</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={venueForm.control}
-                        name="location.address"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Address</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Address" {...field} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={venueForm.control}
-                        name="location.zip"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Postal Code</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Post code" {...field} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={venueForm.control}
-                        name="location.city"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>City</FormLabel>
-                            <FormControl>
-                              <Input placeholder="City" {...field} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={venueForm.control}
-                        name="location.country"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Country</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Country" {...field} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="font-medium mb-2">Amenities</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      <FormField
-                        control={venueForm.control}
-                        name="meta.wifi"
-                        render={({ field }) => (
-                          <FormItem className="flex items-start space-x-2 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel className="font-normal">WiFi</FormLabel>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={venueForm.control}
-                        name="meta.parking"
-                        render={({ field }) => (
-                          <FormItem className="flex items-start space-x-2 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              Parking
-                            </FormLabel>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={venueForm.control}
-                        name="meta.breakfast"
-                        render={({ field }) => (
-                          <FormItem className="flex items-start space-x-2 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              Breakfast
-                            </FormLabel>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={venueForm.control}
-                        name="meta.pets"
-                        render={({ field }) => (
-                          <FormItem className="flex items-start space-x-2 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              Pets allowed
-                            </FormLabel>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={isCreatingVenue}
-                  >
-                    {isCreatingVenue ? "Creating..." : "Create Venue"}
-                  </Button>
-                </form>
-              </Form>
+              <CreateVenueForm
+                isCreatingVenue={isCreatingVenue}
+                onVenueCreated={(venue) => {
+                  setVenues((prevVenues) => [venue, ...prevVenues]);
+                  setVenueDialogOpen(false);
+                }}
+                onClose={() => setVenueDialogOpen(false)}
+              />
             </DialogContent>
           </Dialog>
 
@@ -825,58 +413,14 @@ export default function VenueManagerProfile() {
 
       {/* Profile Edit Form */}
       {showEditForm && (
-        <div className="mt-8 p-6 bg-white rounded-lg shadow-md">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-primary">Edit Profile</h2>
-            <Button variant="ghost" size="sm" onClick={handleEditFormClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <form onSubmit={handleProfileSubmit}>
-            <div className="mb-4">
-              <Label htmlFor="bio" className="block mb-1">
-                Your Bio
-              </Label>
-              <Textarea
-                id="bio"
-                name="bio"
-                value={formData.bio}
-                onChange={handleInputChange}
-                className="resize-none"
-                rows={3}
-                placeholder="Tell us a bit about yourself"
-              />
-            </div>
-
-            <div className="mb-4">
-              <Label htmlFor="avatarUrl" className="block mb-1">
-                Avatar URL
-              </Label>
-              <Input
-                type="text"
-                id="avatarUrl"
-                name="avatarUrl"
-                value={formData.avatarUrl}
-                onChange={handleInputChange}
-                placeholder="Enter avatar image URL"
-              />
-            </div>
-
-            <div className="flex space-x-3">
-              <Button type="submit" disabled={loading}>
-                {loading ? "Saving..." : "Save Changes"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleEditFormClose}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </div>
+        <ManagerEditProfileForm
+          userData={userData}
+          formData={formData}
+          setFormData={setFormData}
+          loading={loading}
+          onSubmit={handleProfileSubmit}
+          onCancel={handleEditFormClose}
+        />
       )}
 
       {/* Venues Section */}

@@ -78,7 +78,7 @@ export default function LoginForm() {
         )}
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 text-custom-blue">
             <FormField
               control={form.control}
               name="email"
@@ -88,7 +88,7 @@ export default function LoginForm() {
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="mail@stud.noroff.no"
+                      placeholder="Email@stud.noroff.no"
                       {...field}
                     />
                   </FormControl>
@@ -109,7 +109,7 @@ export default function LoginForm() {
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="Min 8 characters"
+                      placeholder="Min 08 characters"
                       {...field}
                     />
                   </FormControl>

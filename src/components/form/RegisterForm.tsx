@@ -13,7 +13,6 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from "@/components/ui/form";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,14 @@ import {
   RegisterFormValues,
   UserRole,
 } from "@/services/authService";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 
 export default function RegisterForm() {
   const [role, setRole] = useState<UserRole>("Guest");
@@ -96,15 +103,17 @@ export default function RegisterForm() {
 
   if (success) {
     return (
-      <div className="w-full mx-auto bg-white p-8 sm:p-10 rounded-lg shadow-md">
-        <div className="text-center">
-          <CheckCircle2 className="mx-auto h-16 w-16 text-green-500 mb-4" />
-          <h2 className="text-2xl font-bold text-custom-blue mb-2">
+      <Card className="w-full max-w-md mx-auto shadow-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center text-custom-blue">
             Registration Successful!
-          </h2>
-          <p className="text-custom-gray mb-6">
+          </CardTitle>
+          <CardDescription className="text-center text-muted-foreground">
             Your account has been created successfully.
-          </p>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-center">
+          <CheckCircle2 className="mx-auto h-16 w-16 text-green-500 mb-4" />
           <p className="text-custom-gray mb-4">
             Redirecting you to the login page...
           </p>
@@ -114,164 +123,158 @@ export default function RegisterForm() {
           >
             Go to Login
           </Button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="w-full mx-auto bg-white p-8 sm:p-10 rounded-lg shadow-md">
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold text-custom-blue">
-          Create an account
-        </h1>
-        <p className="text-custom-gray">Sign up to get started with Holidaze</p>
-      </div>
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="mb-4">
-            <h2 className="text-sm font-medium text-gray-700 mb-2">
-              Account Type
-            </h2>
-            <div className="flex space-x-4 bg-gray-50 p-3 rounded-md">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="radio"
-                  value="Guest"
-                  checked={role === "Guest"}
-                  onChange={() => setRole("Guest")}
-                  className="h-4 w-4 text-custom-blue focus:ring-custom-blue"
-                />
-                <span className="ml-2 text-sm text-gray-700">Traveler</span>
-              </label>
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="radio"
-                  value="venueManager"
-                  checked={role === "venueManager"}
-                  onChange={() => setRole("venueManager")}
-                  className="h-4 w-4 text-custom-blue focus:ring-custom-blue"
-                />
-                <span className="ml-2 text-sm text-gray-700">
-                  Venue Manager
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Name</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Your name (letters, numbers, underscore only)"
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Enter your full name (letters, numbers, and underscore only)
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input
-                    type="email"
-                    placeholder="your.email@stud.noroff.no"
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Enter your Noroff student email address
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
-                </FormControl>
-                <FormDescription>
-                  Create a password (minimum 8 characters)
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="bio"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Bio (Optional)</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Tell us about yourself (max 160 characters)"
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Tell us about yourself (maximum 160 characters)
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {role === "venueManager" && (
-            <div
-              className="bg-blue-50 p-3 rounded-md text-sm text-blue-700 mt-4"
-              role="alert"
-            >
-              <p className="font-medium">
-                You&apos;re registering as a Venue Manager
-              </p>
-              <p>You&apos;ll be able to create and manage venue listings.</p>
-            </div>
-          )}
-
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-custom-blue hover:bg-blue-900 text-white py-2 mt-6"
+    <Card className="w-full max-w-md mx-auto shadow-md">
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-2xl font-bold text-center text-custom-blue">
+          Register
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4 text-custom-blue"
           >
-            {isLoading ? (
-              <>
-                <Loader2
-                  className="mr-2 h-4 w-4 animate-spin"
-                  aria-hidden="true"
-                />
-                Creating Account...
-              </>
-            ) : (
-              "Create Account"
-            )}
-          </Button>
-        </form>
-      </Form>
+            <div className="mb-4">
+              <h2 className="text-sm font-medium text-gray-700 mb-2">
+                Account Type
+              </h2>
+              <div className="flex space-x-4 bg-gray-50 p-3 rounded-md">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    value="Guest"
+                    checked={role === "Guest"}
+                    onChange={() => setRole("Guest")}
+                    className="h-4 w-4 text-custom-blue focus:ring-custom-blue"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Traveler</span>
+                </label>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    value="venueManager"
+                    checked={role === "venueManager"}
+                    onChange={() => setRole("venueManager")}
+                    className="h-4 w-4 text-custom-blue focus:ring-custom-blue"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">
+                    Venue Manager
+                  </span>
+                </label>
+              </div>
+            </div>
 
-      <div className="mt-6 text-center">
-        <p className="text-sm text-custom-gray">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Your name (letters, numbers, underscore only)"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="Email@stud.noroff.no"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      placeholder="Min 08 characters"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="bio"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bio (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Tell us about yourself (max 160 characters)"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {role === "venueManager" && (
+              <div
+                className="bg-blue-50 p-3 rounded-md text-sm text-blue-700 mt-4"
+                role="alert"
+              >
+                <p className="font-medium">
+                  You&apos;re registering as a Venue Manager
+                </p>
+                <p>You&apos;ll be able to create and manage venue listings.</p>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full bg-custom-blue hover:bg-blue-900"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2
+                    className="mr-2 h-4 w-4 animate-spin"
+                    aria-hidden="true"
+                  />
+                  Creating Account...
+                </>
+              ) : (
+                "Create Account"
+              )}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+      <CardFooter className="flex justify-center border-t p-4">
+        <p className="text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link
             href="/login"
@@ -280,7 +283,7 @@ export default function RegisterForm() {
             Sign in
           </Link>
         </p>
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   );
 }
