@@ -1,5 +1,4 @@
 "use client";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,7 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, X } from "lucide-react";
-import { fetchWithAuth, createVenue } from "@/utils/api";
+import { createVenue } from "@/utils/api";
 import { useToast } from "@/components/ui/use-toast";
 
 // Schema for venue creation form
@@ -85,7 +84,7 @@ const defaultVenueValues: VenueFormValues = {
 
 interface CreateVenueFormProps {
   isCreatingVenue: boolean;
-  onVenueCreated: (venue: any) => void;
+  onVenueCreated: (venue: unknown) => void;
   onClose: () => void;
 }
 
@@ -179,7 +178,7 @@ export default function CreateVenueForm({
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-custom-blue">Venue Name</FormLabel>
+              <FormLabel>Venue Name</FormLabel>
               <FormControl>
                 <Input placeholder="Enter venue name" {...field} />
               </FormControl>
@@ -193,7 +192,7 @@ export default function CreateVenueForm({
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-custom-blue">Description</FormLabel>
+              <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea
                   placeholder="Describe your venue"
@@ -212,9 +211,7 @@ export default function CreateVenueForm({
             name="price"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-custom-blue">
-                  Price per night
-                </FormLabel>
+                <FormLabel>Price per night (NOK)</FormLabel>
                 <FormControl>
                   <Input type="number" min={1} placeholder="Price" {...field} />
                 </FormControl>
@@ -228,7 +225,7 @@ export default function CreateVenueForm({
             name="maxGuests"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-custom-blue">Max Guests</FormLabel>
+                <FormLabel>Max Guests</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -244,7 +241,7 @@ export default function CreateVenueForm({
         </div>
 
         <div>
-          <Label className="mb-2 block text-custom-blue">Media</Label>
+          <Label className="mb-2 block">Media</Label>
           {venueForm.watch("media")?.map((_, index) => (
             <div key={index} className="flex gap-2 mb-2">
               <FormField
@@ -288,7 +285,7 @@ export default function CreateVenueForm({
               name="location.address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-custom-blue">Address</FormLabel>
+                  <FormLabel>Address</FormLabel>
                   <FormControl>
                     <Input placeholder="Address" {...field} />
                   </FormControl>
@@ -301,9 +298,7 @@ export default function CreateVenueForm({
               name="location.zip"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-custom-blue">
-                    Postal Code
-                  </FormLabel>
+                  <FormLabel>Postal Code</FormLabel>
                   <FormControl>
                     <Input placeholder="Post code" {...field} />
                   </FormControl>
@@ -318,7 +313,7 @@ export default function CreateVenueForm({
               name="location.city"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-custom-blue">City</FormLabel>
+                  <FormLabel>City</FormLabel>
                   <FormControl>
                     <Input placeholder="City" {...field} />
                   </FormControl>
@@ -331,7 +326,7 @@ export default function CreateVenueForm({
               name="location.country"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-custom-blue">Country</FormLabel>
+                  <FormLabel>Country</FormLabel>
                   <FormControl>
                     <Input placeholder="Country" {...field} />
                   </FormControl>
@@ -355,9 +350,7 @@ export default function CreateVenueForm({
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
-                  <FormLabel className="font-normal text-custom-blue">
-                    WiFi
-                  </FormLabel>
+                  <FormLabel className="font-normal">WiFi</FormLabel>
                 </FormItem>
               )}
             />
@@ -373,9 +366,7 @@ export default function CreateVenueForm({
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
-                  <FormLabel className="font-normal text-custom-blue">
-                    Parking
-                  </FormLabel>
+                  <FormLabel className="font-normal">Parking</FormLabel>
                 </FormItem>
               )}
             />
@@ -391,9 +382,7 @@ export default function CreateVenueForm({
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
-                  <FormLabel className="font-normal text-custom-blue">
-                    Breakfast
-                  </FormLabel>
+                  <FormLabel className="font-normal">Breakfast</FormLabel>
                 </FormItem>
               )}
             />
@@ -409,9 +398,7 @@ export default function CreateVenueForm({
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
-                  <FormLabel className="font-normal text-custom-blue">
-                    Pets allowed
-                  </FormLabel>
+                  <FormLabel className="font-normal">Pets allowed</FormLabel>
                 </FormItem>
               )}
             />
@@ -423,7 +410,7 @@ export default function CreateVenueForm({
           name="rating"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-custom-blue">Venue Rating</FormLabel>
+              <FormLabel>Venue Rating</FormLabel>
               <FormControl>
                 <div className="flex items-center space-x-1">
                   {[1, 2, 3, 4, 5].map((star) => (

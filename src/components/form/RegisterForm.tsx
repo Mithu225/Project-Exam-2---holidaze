@@ -139,7 +139,7 @@ export default function RegisterForm() {
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4 text-custom-blue"
+            className="space-y-4 "
           >
             <div className="mb-4">
               <h2 className="text-sm font-medium text-gray-700 mb-2">

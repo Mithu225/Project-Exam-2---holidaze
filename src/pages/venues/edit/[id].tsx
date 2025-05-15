@@ -96,7 +96,7 @@ export default function EditVenuePage() {
       </Head>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">Edit Venue</h1>
+        <h1 className="text-2xl font-bold text-custom-blue text-center mb-6">Edit Venue</h1>
         <EditVenueForm venue={venue} onSuccess={handleSuccess} />
       </div>
     </>

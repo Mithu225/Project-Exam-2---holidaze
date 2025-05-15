@@ -310,7 +310,7 @@ export default function EditVenueForm({
           </div>
 
           <div className="space-y-4">
-            <FormLabel className="text-base">Amenities</FormLabel>
+            <h3 className="font-medium mb-2">Amenties</h3>
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -387,8 +387,8 @@ export default function EditVenueForm({
           </div>
 
           <div className="space-y-4">
-            <FormLabel className="text-base">Location</FormLabel>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <h3 className="font-medium mb-2">Location Details</h3>
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="location.address"
@@ -396,13 +396,27 @@ export default function EditVenueForm({
                   <FormItem>
                     <FormLabel>Address</FormLabel>
                     <FormControl>
-                      <Input placeholder="Street address" {...field} />
+                      <Input placeholder="Address" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
+              <FormField
+                control={form.control}
+                name="location.zip"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Postal Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Post code" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="location.city"
@@ -416,21 +430,6 @@ export default function EditVenueForm({
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="location.zip"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Zip/Postal Code</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Zip/Postal Code" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <FormField
                 control={form.control}
                 name="location.country"
@@ -439,66 +438,6 @@ export default function EditVenueForm({
                     <FormLabel>Country</FormLabel>
                     <FormControl>
                       <Input placeholder="Country" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="location.continent"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Continent</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Continent" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="location.lat"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Latitude</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.000001"
-                        min="-90"
-                        max="90"
-                        placeholder="Latitude"
-                        {...field}
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="location.lng"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Longitude</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.000001"
-                        min="-180"
-                        max="180"
-                        placeholder="Longitude"
-                        {...field}
-                        value={field.value || ""}
-                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -516,7 +455,7 @@ export default function EditVenueForm({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button variant="customBlue" type="submit" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update Venue
             </Button>
