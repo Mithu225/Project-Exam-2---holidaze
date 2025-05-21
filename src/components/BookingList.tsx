@@ -31,7 +31,7 @@ const BookingList = () => {
 
         console.log("Fetching bookings for user:", userName);
 
-        // First, fetch bookings with venue information
+       
         const response = await fetchWithAuth(
           `https://v2.api.noroff.dev/holidaze/profiles/${userName}/bookings?_venue=true`
         );
@@ -51,11 +51,11 @@ const BookingList = () => {
 
         let bookingsData = Array.isArray(data) ? data : data.data || [];
 
-        // Fetch complete venue information for each booking
+       
         const bookingsWithVenues = await Promise.all(
           bookingsData.map(async (booking: Booking) => {
             try {
-              // If venue is just an ID or doesn't have complete information
+            
               if (
                 !booking.venue ||
                 typeof booking.venue === "string" ||
@@ -121,7 +121,7 @@ const BookingList = () => {
         return;
       }
 
-      // Delete booking from the API
+      
       const response = await fetchWithAuth(
         `https://v2.api.noroff.dev/holidaze/bookings/${bookingId}`,
         {
@@ -133,7 +133,7 @@ const BookingList = () => {
         throw new Error("Failed to delete booking");
       }
 
-      // Update local state
+   
       setBookings((prevBookings) =>
         prevBookings.filter((booking) => booking.id !== bookingId)
       );

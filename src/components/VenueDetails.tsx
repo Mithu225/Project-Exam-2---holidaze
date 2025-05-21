@@ -56,7 +56,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     makeBooking,
   } = useVenue(venueId);
 
-  // Booking states
+ 
   const [checkIn, setCheckIn] = useState<string>("");
   const [checkOut, setCheckOut] = useState<string>("");
   const [guests, setGuests] = useState<number>(1);
@@ -65,10 +65,9 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
 
-  // Check if current user is the venue owner
+ 
   const [isOwner, setIsOwner] = useState<boolean>(false);
 
-  // Helper function to generate date range
   const generateDateRange = useCallback((start: Date, end: Date): Date[] => {
     const dates: Date[] = [];
     const current = new Date(start);
@@ -101,7 +100,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     return `${price.toLocaleString("no-NO")} NOK`;
   };
 
-  // Check if a date is within the selected range
   const isDateInRange = useCallback(
     (date: Date) => {
       if (selectedDates.length !== 2) return false;
@@ -109,11 +107,11 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
       const start = new Date(selectedDates[0]);
       const end = new Date(selectedDates[1]);
 
-      // Ensure chronological order
+    
       const rangeStart = start <= end ? start : end;
       const rangeEnd = start <= end ? end : start;
 
-      // Set time to midnight for comparison
+      
       rangeStart.setHours(0, 0, 0, 0);
       rangeEnd.setHours(0, 0, 0, 0);
       date.setHours(0, 0, 0, 0);
@@ -123,11 +121,11 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     [selectedDates]
   );
 
-  // Handle date click in calendar
+ 
   const handleDateClick = (date: Date) => {
     const dateString = format(date, "yyyy-MM-dd");
 
-    // Check if any dates in the potential range are booked
+   
     const checkRangeForBookings = (start: string, end: string) => {
       const startDate = new Date(start);
       const endDate = new Date(end);
@@ -138,17 +136,17 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     };
 
     if (selectedDates.length === 0) {
-      // First date selected
+    
       setSelectedDates([dateString]);
       setCheckIn(dateString);
     } else if (selectedDates.length === 1) {
-      // Second date selected
+     
       const firstDate = new Date(selectedDates[0]);
       const secondDate = date;
 
-      // Ensure chronological order
+    
       if (firstDate <= secondDate) {
-        // Check if any dates in the range are booked
+      
         if (checkRangeForBookings(selectedDates[0], dateString)) {
           alert(
             "Some dates in this range are already booked. Please select different dates."
@@ -158,7 +156,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
         setSelectedDates([selectedDates[0], dateString]);
         setCheckOut(dateString);
       } else {
-        // Check if any dates in the range are booked
+      
         if (checkRangeForBookings(dateString, selectedDates[0])) {
           alert(
             "Some dates in this range are already booked. Please select different dates."
@@ -170,7 +168,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
         setCheckOut(selectedDates[0]);
       }
     } else {
-      // Start new selection
       setSelectedDates([dateString]);
       setCheckIn(dateString);
       setCheckOut("");
@@ -211,17 +208,17 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
         throw new Error(result.error);
       }
 
-      // Clear form
+  
       setCheckIn("");
       setCheckOut("");
       setGuests(1);
       setIsCalendarOpen(false);
       setSelectedDates([]);
 
-      // Show success message
+      
       alert("Booking successful!");
 
-      // Redirect to profile page
+ 
       router.push("/profile");
     } catch (error) {
       console.error("Error saving booking:", error);
@@ -234,11 +231,10 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     const monthEnd = endOfMonth(currentMonth);
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-    // Get days from previous and next months to fill the calendar grid
-    const startDay = monthStart.getDay(); // 0-6 (Sunday-Saturday)
+    
+    const startDay = monthStart.getDay();
     const endDay = monthEnd.getDay();
 
-    // Previous month days to display
     const prevMonthDays = [];
     if (startDay > 0) {
       const prevMonth = new Date(currentMonth);
@@ -252,7 +248,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
       }
     }
 
-    // Next month days to display
+   
     const nextMonthDays = [];
     if (endDay < 6) {
       const nextMonth = new Date(currentMonth);
@@ -265,7 +261,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
       }
     }
 
-    // Create an array of all days to display in the calendar
     const allDays = [...prevMonthDays, ...days, ...nextMonthDays];
 
     return (
@@ -304,7 +299,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               </div>
             ))}
 
-            {/* Calendar days */}
+         
             {allDays.map((day) => {
               const dateString = format(day, "yyyy-MM-dd");
               const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
@@ -343,30 +338,13 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2 text-xs pt-2">
-          <div className="grid grid-cols-2 gap-2 w-full">
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-custom-blue rounded-sm"></div>
-              <span>Selected</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-custom-blue/20 rounded-sm"></div>
-              <span>Range</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-muted rounded-sm"></div>
-              <span>Available</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 opacity-50 line-through rounded-sm border"></div>
-              <span>Unavailable</span>
-            </div>
-          </div>
+         
         </CardFooter>
       </Card>
     );
   };
 
-  // Adds stars rendering with Shadcn styling
+
   const renderStars = (rating: number) => {
     return (
       <div className="flex">
@@ -385,7 +363,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     );
   };
 
-  // Add this useEffect to check ownership
+
   useEffect(() => {
     if (!venue || !venue.owner) return;
 
@@ -395,7 +373,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
 
       const user = JSON.parse(storedUser);
 
-      // Compare venue owner email with current user email
+      
       if (venue.owner.email === user.email) {
         setIsOwner(true);
       } else {
@@ -407,7 +385,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     }
   }, [venue]);
 
-  // Set page title
+ 
   useEffect(() => {
     if (venue) {
       document.title = `${venue.name} | Holidaze`;
@@ -416,7 +394,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     }
   }, [venue]);
 
-  // Loading state
+
   if (loading) {
     return (
       <div className="max-w-screen-lg mx-auto px-4 py-8 flex justify-center items-center h-64">
@@ -425,7 +403,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     );
   }
 
-  // Error state
+
   if (error) {
     return (
       <div className="max-w-screen-lg mx-auto px-4 py-8">
@@ -445,7 +423,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     );
   }
 
-  // Not found state
+ 
   if (!venue) {
     return (
       <div className="max-w-screen-lg mx-auto px-4 py-8">
@@ -474,7 +452,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
   return (
     <>
       <div className="max-w-screen-lg mx-auto px-4 py-8">
-        {/* Top navigation bar */}
+       
         <div className="flex justify-between items-center mb-6">
           <Button
             onClick={() => router.back()}
@@ -502,9 +480,9 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Venue details - Left and middle sections (2/3 width) */}
+      
           <div className="lg:col-span-2 space-y-6">
-            {/* Main image */}
+          
             <div className="relative aspect-[16/9] overflow-hidden rounded-lg">
               <Image
                 src={venueImage.url}
@@ -514,7 +492,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               />
             </div>
 
-            {/* Venue name and rating */}
+           
             <div>
               <div className="flex items-start justify-between mb-2">
                 <h1 className="text-3xl font-bold text-custom-blue">
@@ -532,7 +510,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               </p>
             </div>
 
-            {/* Edit button for owners */}
+           
             {isOwner && (
               <div>
                 <Button
@@ -546,7 +524,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               </div>
             )}
 
-            {/* Description section */}
+           
             <Card>
               <CardHeader>
                 <CardTitle>About This Venue</CardTitle>
@@ -556,7 +534,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               </CardContent>
             </Card>
 
-            {/* Facilities section */}
+          
             <Card>
               <CardHeader>
                 <CardTitle>Facilities</CardTitle>
@@ -607,7 +585,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               </CardContent>
             </Card>
 
-            {/* Location section */}
+            
             <Card>
               <CardHeader>
                 <CardTitle>Location</CardTitle>
@@ -651,7 +629,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
             </Card>
           </div>
 
-          {/* Booking section - Right column (1/3 width) */}
+        
           <div className="lg:self-start lg:sticky lg:top-24">
             <Card className="shadow-md">
               <CardHeader className="pb-4">
@@ -708,7 +686,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
                   )}
                 </div>
 
-                {/* Guests selection */}
+              
                 <div className="space-y-2">
                   <Label htmlFor="guests">Guests</Label>
                   <select
@@ -725,7 +703,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
                   </select>
                 </div>
 
-                {/* Price calculation */}
                 {checkIn && checkOut && (
                   <div className="border-t border-border pt-4 mt-4">
                     <div className="flex justify-between mb-2 text-sm">
@@ -743,7 +720,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
                   </div>
                 )}
 
-                {/* Reserve button */}
+                
                 <Button
                   onClick={handleReservation}
                   disabled={!canReserve()}

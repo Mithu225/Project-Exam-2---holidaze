@@ -11,13 +11,13 @@ const VenueList = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
-  // Function to refresh venues with visual feedback
+
   const refreshVenues = async () => {
     setIsRefreshing(true);
     try {
       await fetchVenues();
     } finally {
-      // Add a slight delay so the user sees the refresh animation
+
       setTimeout(() => {
         setIsRefreshing(false);
       }, 500);
@@ -29,7 +29,7 @@ const VenueList = () => {
     setError(null);
 
     try {
-      // First check for locally created venues in localStorage
+    
       const userVenues = localStorage.getItem("userVenues");
       let localVenues: Venue[] = [];
 
@@ -41,7 +41,7 @@ const VenueList = () => {
             localVenues.length
           );
 
-          // Sort local venues by creation date (most recent first)
+          
           if (localVenues.length > 0) {
             localVenues.sort((a, b) => {
               const aId = a.id.split("-")[1] || "0";
@@ -59,9 +59,9 @@ const VenueList = () => {
 
       const apiUrl = `https://v2.api.noroff.dev/holidaze/venues?sort=created&sortOrder=desc&_owner=true`;
 
-      // Then fetch from API with cache busting
+    
       const response = await fetch(apiUrl, {
-        cache: "no-store", // Tell fetch to always get fresh data
+        cache: "no-store", 
         headers: {
           "Cache-Control": "no-cache, no-store, must-revalidate",
           Pragma: "no-cache",
@@ -76,12 +76,11 @@ const VenueList = () => {
       const data = await response.json();
       let apiVenues = data.data || [];
 
-      // Filter out any API venues that might have the same ID as local venues
-      // (this is unlikely with our temp ID scheme, but good practice)
+     
       const localVenueIds = new Set(localVenues.map((v: Venue) => v.id));
       apiVenues = apiVenues.filter((v: Venue) => !localVenueIds.has(v.id));
 
-      // Process owner information for all venues
+      
       apiVenues = apiVenues.map((venue: Venue) => {
         if (typeof venue.owner === "string") {
           const ownerName = venue.owner as string;
@@ -96,7 +95,7 @@ const VenueList = () => {
         return venue;
       });
 
-      // Combine venues, placing local venues at the top
+      
       const allVenues = [...localVenues, ...apiVenues];
       setVenues(allVenues);
       setLoading(false);
@@ -108,13 +107,13 @@ const VenueList = () => {
     }
   };
 
-  // Handle new venue creation events
+ 
   const handleVenueCreated = (event: CustomEvent<Venue>) => {
-    // Add the newly created venue to the top of the list
+    
     const newVenue = event.detail;
 
     if (newVenue && newVenue.id) {
-      // Process owner information if needed
+      
       if (typeof newVenue.owner === "string") {
         const ownerName = newVenue.owner as string;
         newVenue.owner = {
@@ -124,26 +123,26 @@ const VenueList = () => {
         };
       }
 
-      // Add to venues list at the top for immediate visibility
+      
       setVenues((prevVenues) => [newVenue, ...prevVenues]);
     }
   };
 
   useEffect(() => {
-    // Initial fetch when component mounts
+    
     fetchVenues();
 
-    // Listen for venue creation events
+   
     window.addEventListener(
       "venueCreated",
       handleVenueCreated as EventListener
     );
 
-    // Clear any cached data
+   
     sessionStorage.removeItem("venueCache");
     localStorage.removeItem("venueCache");
 
-    // Clean up event listener on component unmount
+    
     return () => {
       window.removeEventListener(
         "venueCreated",
@@ -194,7 +193,7 @@ const VenueList = () => {
 
   return (
     <div className="container mx-auto px-4 pb-8">
-      {/* Search bar */}
+      
       <div className="relative mb-8 mt-4">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-xl font-semibold text-custom-blue">
@@ -233,7 +232,7 @@ const VenueList = () => {
         </div>
       </div>
 
-      {/* Main venues list */}
+     
       <div>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-custom-blue">

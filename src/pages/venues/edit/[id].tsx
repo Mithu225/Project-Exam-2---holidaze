@@ -7,7 +7,7 @@ import { Venue } from "@/types/booking";
 import EditVenueForm from "@/components/form/EditVenueForm";
 import { fetchWithAuth } from "@/utils/api";
 
-// Main page component
+
 export default function EditVenuePage() {
   const router = useRouter();
   const { id } = router.query;
@@ -15,7 +15,7 @@ export default function EditVenuePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch venue data when component mounts - with useCallback to prevent unnecessary re-renders
+  
   const fetchVenue = useCallback(async (venueId: string) => {
     setIsLoading(true);
     setError(null);
@@ -42,13 +42,13 @@ export default function EditVenuePage() {
     }
   }, []);
 
-  // Handle successful form submission
+
   const handleSuccess = () => {
-    // Redirect to profile page after successful update
+  
     router.push("/profile");
   };
 
-  // Load venue data only once when ID is available
+ 
   useEffect(() => {
     if (id && typeof id === "string" && !venue) {
       fetchVenue(id);

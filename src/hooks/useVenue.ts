@@ -3,7 +3,7 @@ import { fetchVenueDetails, createBooking } from "@/utils/api";
 import { Venue, Booking } from "@/types/booking";
 import { format } from "date-fns";
 
-// Helper function to generate date range
+
 const generateDateRange = (start: Date, end: Date): Date[] => {
   const dates: Date[] = [];
   const current = new Date(start);
@@ -67,7 +67,7 @@ export function useVenue(venueId: string) {
     }
   }, []);
 
-  // Fetch venue data
+
   const fetchVenue = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -91,7 +91,7 @@ export function useVenue(venueId: string) {
     }
   }, [venueId, processBookedDates]);
 
-  // Function to refresh venue data with visual feedback
+  
   const refreshVenue = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -103,7 +103,7 @@ export function useVenue(venueId: string) {
     }
   }, [fetchVenue]);
 
-  // Create a new booking
+ 
   const makeBooking = useCallback(
     async (
       checkIn: string,
@@ -115,7 +115,7 @@ export function useVenue(venueId: string) {
       }
 
       try {
-        // Format dates
+       
         const formattedCheckIn = format(new Date(checkIn), "yyyy-MM-dd");
         const formattedCheckOut = format(new Date(checkOut), "yyyy-MM-dd");
 
@@ -130,7 +130,7 @@ export function useVenue(venueId: string) {
           return { success: false, error: result.error };
         }
 
-        // Update booked dates
+        
         if (result.data) {
           const newBooking = result.data;
           if (newBooking.dateFrom && newBooking.dateTo) {
@@ -156,11 +156,11 @@ export function useVenue(venueId: string) {
     [venue]
   );
 
-  // Call fetchVenue on mount or when venueId changes
+  
   useEffect(() => {
     fetchVenue();
 
-    // Clear any cached data
+  
     sessionStorage.removeItem("venueCache");
     localStorage.removeItem("venueCache");
   }, [venueId, fetchVenue]);

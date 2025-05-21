@@ -40,7 +40,7 @@ export default function GuestProfile() {
   const { toast } = useToast();
   const { updateProfile, isLoading, error } = useProfileUpdate();
 
-  // Setup form with react-hook-form and zod validation
+
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileUpdateSchema),
     defaultValues: {
@@ -63,9 +63,8 @@ export default function GuestProfile() {
       const guest = JSON.parse(storedGuest);
       setGuestData(guest);
 
-      // Initialize form with guest profile data
       form.reset({
-        bio: guest.bio || "", // Convert null/undefined to empty string
+        bio: guest.bio || "", 
         avatarUrl: guest.avatar?.url || "",
         bannerUrl: guest.banner?.url || "",
       });
@@ -82,10 +81,10 @@ export default function GuestProfile() {
   }, [router, toast, form]);
 
   const handleEditFormOpen = () => {
-    // Reset form data with current values
+   
     if (guestData) {
       form.reset({
-        bio: guestData.bio || "", // Convert null/undefined to empty string
+        bio: guestData.bio || "",  
         avatarUrl: guestData.avatar?.url || "",
         bannerUrl: guestData.banner?.url || "",
       });
@@ -100,7 +99,6 @@ export default function GuestProfile() {
   const onSubmit = async (data: ProfileFormData) => {
     if (!guestData) return;
 
-    // Prepare the data for the API
     const updateData = {
       bio: data.bio?.trim() === "" ? null : data.bio,
       ...(data.avatarUrl && {
@@ -117,18 +115,18 @@ export default function GuestProfile() {
       }),
     };
 
-    // Update profile through the API
+   
     const success = await updateProfile(guestData.name, updateData);
 
     if (success) {
-      // Show success toast
+     
       toast({
         title: "Profile Updated",
         description: "Your profile has been successfully updated.",
         variant: "default",
       });
 
-      // Update local state with new data
+    
       setGuestData((prev) => {
         if (!prev) return null;
 
@@ -150,7 +148,7 @@ export default function GuestProfile() {
         };
       });
 
-      // Close the form
+
       setShowEditForm(false);
     }
   };
@@ -179,7 +177,7 @@ export default function GuestProfile() {
 
   return (
     <div className="max-w-screen-lg mx-auto px-4 py-8">
-      {/* Banner and Avatar */}
+   
       <div className="relative w-full h-48 mb-16 rounded-lg bg-white">
         {guestData.banner ? (
           <Image
@@ -208,7 +206,7 @@ export default function GuestProfile() {
         </div>
       </div>
 
-      {/* Profile Info */}
+    
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-primary">{guestData.name}</h1>
@@ -247,7 +245,7 @@ export default function GuestProfile() {
         </div>
       </div>
 
-      {/* Edit Profile Form */}
+   
       {showEditForm && (
         <GuestEditProfileForm
           form={form}
@@ -258,7 +256,7 @@ export default function GuestProfile() {
         />
       )}
 
-      {/* Bookings List */}
+      
       <div className="mt-8">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">
           My Bookings

@@ -55,7 +55,7 @@ const venueFormSchema = z.object({
   }),
 });
 
-// Type for the form data
+
 export type VenueFormValues = z.infer<typeof venueFormSchema>;
 
 const defaultVenueValues: VenueFormValues = {
@@ -99,13 +99,11 @@ export default function CreateVenueForm({
     defaultValues: defaultVenueValues,
   });
 
-  // Helper to add a new media field
   const addMediaField = () => {
     const currentMedia = venueForm.getValues("media") || [];
     venueForm.setValue("media", [...currentMedia, { url: "", alt: "" }]);
   };
 
-  // Helper to remove a media field
   const removeMediaField = (index: number) => {
     const currentMedia = venueForm.getValues("media") || [];
     venueForm.setValue(
@@ -116,7 +114,6 @@ export default function CreateVenueForm({
 
   const handleCreateVenue = async (data: VenueFormValues) => {
     try {
-      // Get authentication token
       const token = localStorage.getItem("accessToken");
       if (!token) {
         toast({
@@ -128,7 +125,6 @@ export default function CreateVenueForm({
         return;
       }
 
-      // Ensure we have at least one media item with a valid URL
       const validMedia =
         data.media &&
         data.media.length > 0 &&
@@ -136,20 +132,17 @@ export default function CreateVenueForm({
           ? data.media.filter((m) => m.url.trim() !== "")
           : [{ url: "/asset/placeholder-venue.jpg", alt: data.name }];
 
-      // Prepare venue data
       const venueData = {
         ...data,
         media: validMedia,
       };
 
-      // Use the new createVenue function
       const result = await createVenue(venueData);
 
       if (!result.success) {
         throw new Error(result.error || "Failed to create venue");
       }
 
-      // Callback to parent
       onVenueCreated(result.data);
       venueForm.reset(defaultVenueValues);
       toast({

@@ -43,17 +43,17 @@ export default function LoginForm() {
   });
 
   const onSubmit = async (values: LoginFormValues) => {
-    // Always use "Guest" role since we're removing the role selection
+    
     const success = await login(values, "Guest");
 
     if (success) {
-      // Show success toast
+
       toast({
         title: "Login Successful",
         description: "You have been logged in successfully.",
       });
 
-      // Navigate to profile page after login
+ 
       router.push("/profile");
     }
   };

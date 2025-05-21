@@ -97,11 +97,11 @@ export function useAuth(): UseAuthReturn {
         return false;
       }
 
-      // Store user data and token
+      
       localStorage.setItem("accessToken", result.data.accessToken);
       localStorage.setItem("user", JSON.stringify(result.data));
 
-      // Fetch user profile details
+      
       const profileData = await fetchProfileDetails(result.data.name);
 
       const userData: User = {
@@ -117,20 +117,20 @@ export function useAuth(): UseAuthReturn {
 
       localStorage.setItem("userProfile", JSON.stringify(profileData));
 
-      // Initialize venues array for first-time users if needed
+      
       if (!localStorage.getItem("userProfile")) {
         localStorage.setItem("userProfile", JSON.stringify({}));
       }
 
-      // Update state
+      
       setUser(userData);
       setIsLoggedIn(true);
 
-      // Dispatch login event for components to react
+      
       const loginEvent = new Event("loginStateChanged");
       document.dispatchEvent(loginEvent);
 
-      // Show success message
+     
       toast({
         title: "Login Successful",
         description: `Welcome back, ${userData.name}!`,
@@ -150,14 +150,14 @@ export function useAuth(): UseAuthReturn {
     }
   };
 
-  // Logout function
+ 
   const logout = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
     setUser(null);
     setIsLoggedIn(false);
 
-    // Dispatch logout event
+   
     const logoutEvent = new Event("loginStateChanged");
     document.dispatchEvent(logoutEvent);
 

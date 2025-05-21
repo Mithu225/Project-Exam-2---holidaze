@@ -11,7 +11,7 @@ export default function SearchBar() {
   const router = useRouter();
   const [venues, setVenues] = useState<Venue[]>([]);
 
-  // Handle new venue creation events
+
   const handleVenueCreated = (event: CustomEvent<Venue>) => {
     // Add the newly created venue to the venues list
     const newVenue = event.detail;
@@ -24,7 +24,7 @@ export default function SearchBar() {
   useEffect(() => {
     const fetchVenues = async () => {
       try {
-        // First check localStorage for user-created venues
+        
         const userVenues = localStorage.getItem("userVenues");
         let localVenues: Venue[] = [];
 
@@ -43,11 +43,11 @@ export default function SearchBar() {
           }
         }
 
-        // Add timestamp for cache busting
+        
         const timestamp = Date.now();
         const apiUrl = `https://v2.api.noroff.dev/holidaze/venues?_=${timestamp}`;
 
-        // Then get venues from API
+    
         const response = await fetch(apiUrl, {
           cache: "no-store",
           headers: {
@@ -63,12 +63,11 @@ export default function SearchBar() {
           apiVenues = result.data;
         }
 
-        // Combine all venues, with local venues first
         setVenues([...localVenues, ...apiVenues]);
       } catch (error) {
         console.error("Error fetching venues:", error);
 
-        // If API fails, try to at least show local venues
+      
         const userVenues = localStorage.getItem("userVenues");
         if (userVenues) {
           try {
@@ -86,7 +85,7 @@ export default function SearchBar() {
 
     fetchVenues();
 
-    // Listen for venue creation events
+  
     window.addEventListener(
       "venueCreated",
       handleVenueCreated as EventListener
@@ -103,11 +102,11 @@ export default function SearchBar() {
   const filteredVenues = venues.filter((venue) => {
     const searchTerm = query.toLowerCase();
     return (
-      // Check name
+     
       (venue.name?.toLowerCase() || "").includes(searchTerm) ||
-      // Check city if location exists
+    
       (venue.location?.city?.toLowerCase() || "").includes(searchTerm) ||
-      // Check country if location exists
+     
       (venue.location?.country?.toLowerCase() || "").includes(searchTerm)
     );
   });
@@ -115,7 +114,7 @@ export default function SearchBar() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      // Navigate to search results page with the query parameter
+     
       router.push(`/search?q=${encodeURIComponent(query)}`);
       setQuery("");
     }

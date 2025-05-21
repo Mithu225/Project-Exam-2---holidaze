@@ -1,9 +1,8 @@
 import { z } from "zod";
 
-// API base URL
+
 const API_BASE_URL = "https://v2.api.noroff.dev";
 
-// Register validation schema
 export const registerSchema = z.object({
   name: z
     .string()
@@ -30,7 +29,7 @@ export const registerSchema = z.object({
 
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 
-// Login validation schema
+
 export const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z
@@ -40,10 +39,10 @@ export const loginSchema = z.object({
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
 
-// User role type
+
 export type UserRole = "Guest" | "venueManager";
 
-// Register a new user
+
 export async function registerUser(
   userData: RegisterFormValues & { venueManager?: boolean }
 ): Promise<{ success: boolean; data?: any; error?: string }> {
@@ -80,7 +79,7 @@ export async function registerUser(
   }
 }
 
-// Login user
+
 export async function loginUser(
   credentials: LoginFormValues
 ): Promise<{ success: boolean; data?: any; error?: string }> {

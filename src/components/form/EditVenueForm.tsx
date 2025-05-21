@@ -81,7 +81,7 @@ export default function EditVenueForm({
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(error);
 
-  // Initialize form with venue data
+
   const form = useForm<VenueFormValues>({
     resolver: zodResolver(venueFormSchema),
     defaultValues: {
@@ -109,18 +109,18 @@ export default function EditVenueForm({
     },
   });
 
-  // Update form error when the hook error changes
+  
   useEffect(() => {
     setFormError(error);
   }, [error]);
 
-  // Helper to add a new media field
+ 
   const addMediaField = () => {
     const currentMedia = form.getValues("media") || [];
     form.setValue("media", [...currentMedia, { url: "", alt: "" }]);
   };
 
-  // Helper to remove a media field
+ 
   const removeMediaField = (index: number) => {
     const currentMedia = form.getValues("media") || [];
     form.setValue(
@@ -129,7 +129,7 @@ export default function EditVenueForm({
     );
   };
 
-  // Handle form submission
+
   const onSubmit = async (data: VenueFormValues) => {
     setFormError(null);
 
@@ -145,7 +145,7 @@ export default function EditVenueForm({
         if (onSuccess) {
           onSuccess();
         } else {
-          // Navigate to profile page if no success callback
+      
           router.push("/profile");
         }
       } else {

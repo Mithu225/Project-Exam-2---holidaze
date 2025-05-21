@@ -29,7 +29,7 @@ export interface Venue {
     lat: number;
     lng: number;
   };
-  owner: Owner | string; // Can be either an Owner object or a string (name)
+  owner: Owner | string; 
   bookings?: {
     id: string;
     dateFrom: string;
@@ -37,5 +37,5 @@ export interface Venue {
     guests: number;
     created: string;
     updated: string;
-  }[]; // Optional bookings array
+  }[]; 
 }

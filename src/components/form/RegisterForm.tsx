@@ -54,18 +54,18 @@ export default function RegisterForm() {
     setSuccess(false);
 
     try {
-      // Prepare request data with conditional venueManager flag
+  
       const requestData = {
         ...values,
         ...(role === "venueManager" && { venueManager: true }),
       };
 
-      // Remove empty bio if not provided
+     
       if (!requestData.bio || requestData.bio.trim() === "") {
         delete requestData.bio;
       }
 
-      // Register user
+ 
       const result = await registerUser(requestData);
 
       if (result.success) {
@@ -76,7 +76,7 @@ export default function RegisterForm() {
           variant: "default",
         });
 
-        // Redirect to login page after a short delay
+
         setTimeout(() => {
           router.push("/login");
         }, 2000);

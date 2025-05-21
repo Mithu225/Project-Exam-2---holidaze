@@ -12,7 +12,7 @@ export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const router = useRouter();
 
-  // Function to handle logout
+ 
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("accessToken");
@@ -22,7 +22,7 @@ export default function Header() {
     router.push("/login");
   };
 
-  // Function to check login status and update state
+
   const checkLoginStatus = () => {
     const storedUserProfile = localStorage.getItem("userProfile");
     const token = localStorage.getItem("accessToken");
@@ -43,17 +43,16 @@ export default function Header() {
   };
 
   useEffect(() => {
-    // Check login status on mount
+    
     checkLoginStatus();
 
-    // Add event listener for storage changes (for changes in other tabs)
+   
     window.addEventListener("storage", checkLoginStatus);
 
-    // Create a custom event listener for login changes in the current tab
+  
     const handleLoginChange = () => checkLoginStatus();
     document.addEventListener("loginStateChanged", handleLoginChange);
 
-    // Check status every second to handle any changes
     const intervalId = setInterval(checkLoginStatus, 1000);
 
     return () => {

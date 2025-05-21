@@ -4,7 +4,6 @@ import { useRouter } from "next/router";
 import { fetchWithAuth } from "@/utils/api";
 import * as z from "zod";
 
-// Zod validation schema for profile updates
 export const profileUpdateSchema = z.object({
   bio: z.string().max(160, "Bio must be 160 characters or less").optional(),
   avatarUrl: z
@@ -39,7 +38,6 @@ export function useProfileUpdate() {
   const { toast } = useToast();
   const router = useRouter();
 
-  // Update profile function
   const updateProfile = async (
     username: string,
     data: ProfileUpdateData
@@ -66,9 +64,8 @@ export function useProfileUpdate() {
         );
       }
 
-      const result = await response.json();
+      await response.json();
 
-      // Update the local storage with the updated profile data
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         const userData = JSON.parse(storedUser);

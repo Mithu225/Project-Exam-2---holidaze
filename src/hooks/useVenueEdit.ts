@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { fetchWithAuth } from "@/utils/api";
 import { useToast } from "@/components/ui/use-toast";
-import { useRouter } from "next/navigation";
 import { Venue } from "@/types/booking";
 
 export type VenueUpdateData = {
@@ -35,7 +34,6 @@ export function useVenueEdit() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const router = useRouter();
 
   const updateVenue = async (
     venueId: string,
@@ -45,13 +43,11 @@ export function useVenueEdit() {
     setError(null);
 
     try {
-      // Ensure we have at least one media item with a valid URL if media is provided
-      let processedData = { ...venueData };
+      const processedData = { ...venueData };
 
       if (venueData.media) {
         const validMedia = venueData.media.filter((m) => m.url.trim() !== "");
         if (validMedia.length === 0) {
-          // If no valid media, use a placeholder
           processedData.media = [
             {
               url: "/asset/placeholder-venue.jpg",
@@ -86,6 +82,11 @@ export function useVenueEdit() {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to update venue";
       setError(errorMessage);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
       console.error("Error updating venue:", error);
       return { success: false };
     } finally {

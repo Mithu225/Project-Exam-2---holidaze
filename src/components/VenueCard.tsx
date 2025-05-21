@@ -17,7 +17,7 @@ interface VenueCardProps {
 }
 
 const VenueCard = ({ venue }: VenueCardProps) => {
-  // Format price
+
   const formatPrice = (price: number) => {
     return price.toLocaleString("en-US", {
       style: "currency",
@@ -27,7 +27,7 @@ const VenueCard = ({ venue }: VenueCardProps) => {
     });
   };
 
-  // Get primary image or placeholder
+ 
   const venueImage =
     venue.media && venue.media.length > 0
       ? venue.media[0]

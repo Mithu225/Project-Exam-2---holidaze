@@ -10,7 +10,7 @@ export default function ProfilePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if guest is logged in
+    
     const storedUserProfile = localStorage.getItem("userProfile"); // Note: storage key remains 'user' for compatibility
     const token = localStorage.getItem("accessToken");
 

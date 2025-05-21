@@ -66,7 +66,7 @@ export interface Booking {
   created: string;
   updated?: string;
   venue: Venue;
-  userId?: string; // User identifier (email) for filtering bookings by user
+  userId?: string; 
   customer?: {
     name: string;
     email: string;

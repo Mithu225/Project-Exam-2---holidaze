@@ -48,7 +48,6 @@ interface UserData {
   role?: string;
 }
 
-// Define an interface for the venue booking within venue data
 type VenueBooking = {
   id: string;
   dateFrom: string;
@@ -87,7 +86,7 @@ export default function VenueManagerProfile() {
   const router = useRouter();
   const { toast } = useToast();
 
-  // State for venue creation dialog
+
   const [venueDialogOpen, setVenueDialogOpen] = useState(false);
   const [isCreatingVenue] = useState(false);
 
@@ -125,7 +124,7 @@ export default function VenueManagerProfile() {
       setBookingsLoading(true);
       setBookingsError(null);
 
-      // Get authentication data
+    
       const token = localStorage.getItem("accessToken");
 
       if (!token || !userName) {
@@ -138,7 +137,6 @@ export default function VenueManagerProfile() {
         return;
       }
 
-      // Fetch venues with bookings included
       try {
         const profileResponse = await fetchWithAuth(
           `https://v2.api.noroff.dev/holidaze/profiles/${userName}/venues?_bookings=true&sort=created&sortOrder=desc&_owner=true`
@@ -151,12 +149,11 @@ export default function VenueManagerProfile() {
           if (data.data && Array.isArray(data.data)) {
             setVenues(data.data);
 
-            // Extract all bookings from venues
             const allBookings: Booking[] = [];
             data.data.forEach((venue: Venue) => {
               if (venue.bookings && Array.isArray(venue.bookings)) {
                 venue.bookings.forEach((booking: VenueBooking) => {
-                  // Add venue data to booking for display
+                 
                   allBookings.push({
                     ...booking,
                     venue: {
@@ -176,7 +173,7 @@ export default function VenueManagerProfile() {
               }
             });
 
-            // Sort bookings by date (upcoming first)
+           
             const sortedBookings = allBookings.sort(
               (a, b) =>
                 new Date(a.dateFrom).getTime() - new Date(b.dateFrom).getTime()
@@ -203,7 +200,7 @@ export default function VenueManagerProfile() {
             ? profileError.message
             : "Failed to load bookings"
         );
-        // Continue as we may still have venues data
+      
       }
     } catch (error) {
       console.error("Error in venue fetching process:", error);
@@ -261,7 +258,7 @@ export default function VenueManagerProfile() {
   };
 
   const handleDeleteVenue = async (venueId: string) => {
-    // Confirm before deleting
+   
     if (!confirm("Are you sure you want to delete this venue?")) {
       return;
     }
@@ -278,7 +275,6 @@ export default function VenueManagerProfile() {
         return;
       }
 
-      // Make API call to delete venue
       const response = await fetchWithAuth(
         `https://v2.api.noroff.dev/holidaze/venues/${venueId}?_owner=true`,
         {
@@ -295,7 +291,6 @@ export default function VenueManagerProfile() {
         throw new Error(errorMessage);
       }
 
-      // Update venues list after deletion
       setVenues((prevVenues) =>
         prevVenues.filter((venue) => venue.id !== venueId)
       );
@@ -583,7 +578,7 @@ export default function VenueManagerProfile() {
         ) : (
           <div className="space-y-4">
             {bookings.map((booking) => {
-              // Determine if booking is upcoming, current, or past
+             
               const now = new Date();
               const bookingStart = new Date(booking.dateFrom);
               const bookingEnd = new Date(booking.dateTo);
