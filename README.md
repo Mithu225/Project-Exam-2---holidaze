@@ -70,20 +70,14 @@ cd Project-Exam-2---holidaze
 npm install
 ```
 
-3. Set up environment variables:
-   Create a `.env.local` file in the root directory with the following variables:
 
-```env
-NEXT_PUBLIC_API_URL=https://v2.api.noroff.dev
-```
-
-4. Run the development server:
+3. Run the development server:
 
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
+4. Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
 
 ## API Integration
 
