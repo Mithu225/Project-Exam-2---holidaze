@@ -3,49 +3,68 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Venue } from "@/types/booking";
 import VenueCard from "./VenueCard";
 import { Search, RefreshCw } from "lucide-react";
+import React from "react";
+
+interface SearchInputProps {
+  onSearch: (term: string) => void;
+  initialValue?: string;
+}
+
+const SearchInput = React.memo<SearchInputProps>(function SearchInput({
+  onSearch,
+  initialValue = "",
+}) {
+  const [searchTerm, setSearchTerm] = useState(initialValue);
+
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchTerm(e.target.value);
+    },
+    []
+  );
+
+  const handleKeyPress = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        onSearch(searchTerm);
+      }
+    },
+    [onSearch, searchTerm]
+  );
+
+  return (
+    <div className="relative">
+      <label htmlFor="venue-search" className="sr-only">
+        Search Venues
+      </label>
+      <input
+        id="venue-search"
+        type="text"
+        value={searchTerm}
+        onChange={handleSearchChange}
+        onKeyPress={handleKeyPress}
+        placeholder="Search venues by name, location, or features... (Press Enter to search)"
+        className="w-full px-4 py-3 pl-12 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-custom-blue focus:border-transparent"
+      />
+      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+        <Search className="h-6 w-6 text-gray-400" />
+      </div>
+    </div>
+  );
+});
 
 const VenueList = () => {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [, setIsSearching] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [currentSearchTerm, setCurrentSearchTerm] = useState("");
   const observer = useRef<IntersectionObserver | null>(null);
   const ITEMS_PER_PAGE = 10;
-  const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const isInitialMount = useRef(true);
-
-  const lastVenueElementRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (loading || isLoadingMore) return;
-      if (observer.current) observer.current.disconnect();
-      observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          setPage((prevPage) => prevPage + 1);
-        }
-      });
-      if (node) observer.current.observe(node);
-    },
-    [loading, hasMore, isLoadingMore]
-  );
-
-  const refreshVenues = async () => {
-    setIsRefreshing(true);
-    try {
-      setPage(1);
-      setVenues([]);
-      await fetchVenues(1, true);
-    } finally {
-      setTimeout(() => {
-        setIsRefreshing(false);
-      }, 500);
-    }
-  };
 
   const searchVenues = useCallback(
     async (
@@ -59,6 +78,7 @@ const VenueList = () => {
         setIsLoadingMore(true);
       }
       setError(null);
+      setIsSearching(true);
 
       try {
         const apiUrl = `https://v2.api.noroff.dev/holidaze/venues/search?q=${keyword}&limit=${ITEMS_PER_PAGE}&page=${pageNum}`;
@@ -94,10 +114,38 @@ const VenueList = () => {
       } finally {
         setLoading(false);
         setIsLoadingMore(false);
+        setIsSearching(false);
       }
     },
     [ITEMS_PER_PAGE]
   );
+
+  const handleSearch = useCallback(
+    async (term: string) => {
+      setCurrentSearchTerm(term);
+      setPage(1);
+      setVenues([]);
+      if (term) {
+        await searchVenues(term, 1, true);
+      } else {
+        await fetchVenues(1, true);
+      }
+    },
+    [searchVenues]
+  );
+
+  const refreshVenues = async () => {
+    setIsRefreshing(true);
+    try {
+      setPage(1);
+      setVenues([]);
+      await fetchVenues(1, true);
+    } finally {
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 500);
+    }
+  };
 
   const fetchVenues = useCallback(
     async (pageNum: number = 1, isRefresh: boolean = false) => {
@@ -185,22 +233,19 @@ const VenueList = () => {
     [ITEMS_PER_PAGE]
   );
 
-  const handleVenueCreated = (event: CustomEvent<Venue>) => {
-    const newVenue = event.detail;
-
-    if (newVenue && newVenue.id) {
-      if (typeof newVenue.owner === "string") {
-        const ownerName = newVenue.owner as string;
-        newVenue.owner = {
-          name: ownerName,
-          email: `${ownerName.toLowerCase().replace(/\s+/g, ".")}@holidaze.com`,
-          avatar: "",
-        };
-      }
-
-      setVenues((prevVenues) => [newVenue, ...prevVenues]);
-    }
-  };
+  const lastVenueElementRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (loading || isLoadingMore) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setPage((prevPage) => prevPage + 1);
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [loading, hasMore, isLoadingMore]
+  );
 
   useEffect(() => {
     fetchVenues(1, true);
@@ -222,45 +267,32 @@ const VenueList = () => {
   }, []);
 
   useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
+    if (!isSearching) {
+      const loadMoreData = async () => {
+        if (page > 1) {
+          await fetchVenues(page, false);
+        }
+      };
+      loadMoreData();
     }
+  }, [page, isSearching]);
 
-    searchTimeoutRef.current = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500);
+  const handleVenueCreated = (event: CustomEvent<Venue>) => {
+    const newVenue = event.detail;
 
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, [searchTerm]);
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (isInitialMount.current) {
-        isInitialMount.current = false;
-        return;
+    if (newVenue && newVenue.id) {
+      if (typeof newVenue.owner === "string") {
+        const ownerName = newVenue.owner as string;
+        newVenue.owner = {
+          name: ownerName,
+          email: `${ownerName.toLowerCase().replace(/\s+/g, ".")}@holidaze.com`,
+          avatar: "",
+        };
       }
 
-      if (debouncedSearchTerm) {
-        setIsSearching(true);
-        if (page === 1) {
-          setVenues([]);
-        }
-        await searchVenues(debouncedSearchTerm, page, page === 1);
-      } else {
-        setIsSearching(false);
-        if (page === 1) {
-          setVenues([]);
-        }
-        await fetchVenues(page, page === 1);
-      }
-    };
-
-    loadData();
-  }, [debouncedSearchTerm, page]);
+      setVenues((prevVenues) => [newVenue, ...prevVenues]);
+    }
+  };
 
   if (loading && venues.length === 0) {
     return (
@@ -290,18 +322,6 @@ const VenueList = () => {
     );
   }
 
-  const filteredVenues = searchTerm
-    ? venues.filter((venue) => {
-        const searchLower = searchTerm.toLowerCase();
-        return (
-          venue.name?.toLowerCase().includes(searchLower) ||
-          venue.description?.toLowerCase().includes(searchLower) ||
-          venue.location?.city?.toLowerCase().includes(searchLower) ||
-          venue.location?.country?.toLowerCase().includes(searchLower)
-        );
-      })
-    : venues;
-
   return (
     <div className="container mx-auto px-4 pb-8">
       <div className="relative mb-8 mt-4">
@@ -324,60 +344,64 @@ const VenueList = () => {
           </button>
         </div>
 
-        <div className="relative">
-          <label htmlFor="venue-search" className="sr-only">
-            Search Venues
-          </label>
-          <input
-            id="venue-search"
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search venues by name, location, or features..."
-            className="w-full px-4 py-3 pl-12 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-custom-blue focus:border-transparent"
-          />
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <Search className="h-6 w-6 text-gray-400" />
-          </div>
-        </div>
+        <SearchInput onSearch={handleSearch} initialValue={currentSearchTerm} />
       </div>
 
       <div>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-custom-blue">
-            {searchTerm
-              ? `Search Results (${filteredVenues.length})`
+            {currentSearchTerm
+              ? `Search Results for "${currentSearchTerm}" (${venues.length})`
               : "All Available Venues"}
           </h2>
-          {filteredVenues.some((v) => v.id.startsWith("temp-")) && (
+          {venues.some((v) => v.id.startsWith("temp-")) && (
             <span className="text-sm bg-custom-orange text-white px-2 py-1 rounded">
               New venues added
             </span>
           )}
         </div>
 
-        {filteredVenues.length > 0 ? (
+        {isSearching && (
+          <div className="flex justify-center items-center py-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-custom-blue"></div>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            <p className="font-medium">Error loading venues</p>
+            <p>{error}</p>
+            <button
+              onClick={refreshVenues}
+              className="mt-4 flex items-center bg-custom-blue text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+            >
+              <RefreshCw size={16} className="mr-2" />
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {venues.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {filteredVenues.map((venue, index) => (
+            {venues.map((venue, index) => (
               <div
                 key={venue.id}
-                ref={
-                  index === filteredVenues.length - 1
-                    ? lastVenueElementRef
-                    : null
-                }
+                ref={index === venues.length - 1 ? lastVenueElementRef : null}
               >
                 <VenueCard venue={venue} />
               </div>
             ))}
           </div>
         ) : (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 p-4 rounded">
-            <p>
-              No venues found matching &quot;{searchTerm}&quot;. Try a different
-              search term.
-            </p>
-          </div>
+          !isSearching && (
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 p-4 rounded">
+              <p>
+                {currentSearchTerm
+                  ? `No venues found matching "${currentSearchTerm}". Try a different search term.`
+                  : "No venues found. Try a different search term."}
+              </p>
+            </div>
+          )
         )}
         {isLoadingMore && (
           <div className="flex justify-center items-center mt-4">
