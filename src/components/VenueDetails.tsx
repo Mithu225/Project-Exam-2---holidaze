@@ -465,7 +465,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
 
             <div>
               <div className="flex items-start justify-between mb-2">
-                <h1 className="text-3xl font-bold text-custom-blue break-words">
+                <h1 className="text-3xl font-bold text-custom-blue break-words break-all">
                   {venue.name}
                 </h1>
                 <div className="flex items-center">
