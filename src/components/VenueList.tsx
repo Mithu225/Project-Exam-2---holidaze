@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Venue } from "@/types/booking";
 import VenueCard from "./VenueCard";
 import { Search, RefreshCw } from "lucide-react";
@@ -9,111 +9,186 @@ const VenueList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const observer = useRef<IntersectionObserver | null>(null);
+  const ITEMS_PER_PAGE = 10;
+  const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const isInitialMount = useRef(true);
 
+  const lastVenueElementRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (loading || isLoadingMore) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setPage((prevPage) => prevPage + 1);
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [loading, hasMore, isLoadingMore]
+  );
 
   const refreshVenues = async () => {
     setIsRefreshing(true);
     try {
-      await fetchVenues();
+      setPage(1);
+      setVenues([]);
+      await fetchVenues(1, true);
     } finally {
-
       setTimeout(() => {
         setIsRefreshing(false);
       }, 500);
     }
   };
 
-  const fetchVenues = async () => {
-    setLoading(true);
-    setError(null);
+  const searchVenues = useCallback(
+    async (
+      keyword: string,
+      pageNum: number = 1,
+      isRefresh: boolean = false
+    ) => {
+      if (isRefresh) {
+        setLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+      setError(null);
 
-    try {
-    
-      const userVenues = localStorage.getItem("userVenues");
-      let localVenues: Venue[] = [];
+      try {
+        const apiUrl = `https://v2.api.noroff.dev/holidaze/venues/search?q=${keyword}&limit=${ITEMS_PER_PAGE}&page=${pageNum}`;
 
-      if (userVenues) {
-        try {
-          localVenues = JSON.parse(userVenues);
-          console.log(
-            "Found user-created venues in localStorage:",
-            localVenues.length
-          );
+        const response = await fetch(apiUrl, {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        });
 
-          
-          if (localVenues.length > 0) {
-            localVenues.sort((a, b) => {
-              const aId = a.id.split("-")[1] || "0";
-              const bId = b.id.split("-")[1] || "0";
-              return parseInt(bId) - parseInt(aId);
-            });
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const searchResults = data.data || [];
+
+        setHasMore(searchResults.length === ITEMS_PER_PAGE);
+
+        setVenues((prevVenues) => {
+          if (isRefresh) {
+            return searchResults;
           }
-        } catch (parseError) {
-          console.error(
-            "Error parsing user venues from localStorage:",
-            parseError
-          );
-        }
+          return [...prevVenues, ...searchResults];
+        });
+      } catch (err: unknown) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to fetch venues";
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+        setIsLoadingMore(false);
       }
+    },
+    [ITEMS_PER_PAGE]
+  );
 
-      const apiUrl = `https://v2.api.noroff.dev/holidaze/venues?sort=created&sortOrder=desc&_owner=true`;
-
-    
-      const response = await fetch(apiUrl, {
-        cache: "no-store", 
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+  const fetchVenues = useCallback(
+    async (pageNum: number = 1, isRefresh: boolean = false) => {
+      if (isRefresh) {
+        setLoading(true);
+      } else {
+        setIsLoadingMore(true);
       }
+      setError(null);
 
-      const data = await response.json();
-      let apiVenues = data.data || [];
+      try {
+        const userVenues = localStorage.getItem("userVenues");
+        let localVenues: Venue[] = [];
 
-     
-      const localVenueIds = new Set(localVenues.map((v: Venue) => v.id));
-      apiVenues = apiVenues.filter((v: Venue) => !localVenueIds.has(v.id));
-
-      
-      apiVenues = apiVenues.map((venue: Venue) => {
-        if (typeof venue.owner === "string") {
-          const ownerName = venue.owner as string;
-          venue.owner = {
-            name: ownerName,
-            email: `${ownerName
-              .toLowerCase()
-              .replace(/\s+/g, ".")}@holidaze.com`,
-            avatar: "",
-          };
+        if (userVenues) {
+          try {
+            localVenues = JSON.parse(userVenues);
+            if (localVenues.length > 0) {
+              localVenues.sort((a, b) => {
+                const aId = a.id.split("-")[1] || "0";
+                const bId = b.id.split("-")[1] || "0";
+                return parseInt(bId) - parseInt(aId);
+              });
+            }
+          } catch (parseError) {
+            console.error(
+              "Error parsing user venues from localStorage:",
+              parseError
+            );
+          }
         }
-        return venue;
-      });
 
-      
-      const allVenues = [...localVenues, ...apiVenues];
-      setVenues(allVenues);
-      setLoading(false);
-    } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to fetch venues";
-      setError(errorMessage);
-      setLoading(false);
-    }
-  };
+        const apiUrl = `https://v2.api.noroff.dev/holidaze/venues?sort=created&sortOrder=desc&_owner=true&limit=${ITEMS_PER_PAGE}&page=${pageNum}`;
 
- 
+        const response = await fetch(apiUrl, {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        let apiVenues = data.data || [];
+
+        setHasMore(apiVenues.length === ITEMS_PER_PAGE);
+
+        const localVenueIds = new Set(localVenues.map((v: Venue) => v.id));
+        apiVenues = apiVenues.filter((v: Venue) => !localVenueIds.has(v.id));
+
+        apiVenues = apiVenues.map((venue: Venue) => {
+          if (typeof venue.owner === "string") {
+            const ownerName = venue.owner as string;
+            venue.owner = {
+              name: ownerName,
+              email: `${ownerName
+                .toLowerCase()
+                .replace(/\s+/g, ".")}@holidaze.com`,
+              avatar: "",
+            };
+          }
+          return venue;
+        });
+
+        setVenues((prevVenues) => {
+          if (isRefresh) {
+            return [...localVenues, ...apiVenues];
+          }
+          return [...prevVenues, ...apiVenues];
+        });
+      } catch (err: unknown) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to fetch venues";
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+        setIsLoadingMore(false);
+      }
+    },
+    [ITEMS_PER_PAGE]
+  );
+
   const handleVenueCreated = (event: CustomEvent<Venue>) => {
-    
     const newVenue = event.detail;
 
     if (newVenue && newVenue.id) {
-      
       if (typeof newVenue.owner === "string") {
         const ownerName = newVenue.owner as string;
         newVenue.owner = {
@@ -123,26 +198,21 @@ const VenueList = () => {
         };
       }
 
-      
       setVenues((prevVenues) => [newVenue, ...prevVenues]);
     }
   };
 
   useEffect(() => {
-    
-    fetchVenues();
+    fetchVenues(1, true);
 
-   
     window.addEventListener(
       "venueCreated",
       handleVenueCreated as EventListener
     );
 
-   
     sessionStorage.removeItem("venueCache");
     localStorage.removeItem("venueCache");
 
-    
     return () => {
       window.removeEventListener(
         "venueCreated",
@@ -150,6 +220,47 @@ const VenueList = () => {
       );
     };
   }, []);
+
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (isInitialMount.current) {
+        isInitialMount.current = false;
+        return;
+      }
+
+      if (debouncedSearchTerm) {
+        setIsSearching(true);
+        if (page === 1) {
+          setVenues([]);
+        }
+        await searchVenues(debouncedSearchTerm, page, page === 1);
+      } else {
+        setIsSearching(false);
+        if (page === 1) {
+          setVenues([]);
+        }
+        await fetchVenues(page, page === 1);
+      }
+    };
+
+    loadData();
+  }, [debouncedSearchTerm, page]);
 
   if (loading && venues.length === 0) {
     return (
@@ -193,7 +304,6 @@ const VenueList = () => {
 
   return (
     <div className="container mx-auto px-4 pb-8">
-      
       <div className="relative mb-8 mt-4">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-xl font-semibold text-custom-blue">
@@ -232,7 +342,6 @@ const VenueList = () => {
         </div>
       </div>
 
-     
       <div>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-custom-blue">
@@ -249,8 +358,17 @@ const VenueList = () => {
 
         {filteredVenues.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {filteredVenues.map((venue) => (
-              <VenueCard key={venue.id} venue={venue} />
+            {filteredVenues.map((venue, index) => (
+              <div
+                key={venue.id}
+                ref={
+                  index === filteredVenues.length - 1
+                    ? lastVenueElementRef
+                    : null
+                }
+              >
+                <VenueCard venue={venue} />
+              </div>
             ))}
           </div>
         ) : (
@@ -259,6 +377,11 @@ const VenueList = () => {
               No venues found matching &quot;{searchTerm}&quot;. Try a different
               search term.
             </p>
+          </div>
+        )}
+        {isLoadingMore && (
+          <div className="flex justify-center items-center mt-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-custom-blue"></div>
           </div>
         )}
       </div>

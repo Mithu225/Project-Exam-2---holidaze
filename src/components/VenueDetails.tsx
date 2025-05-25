@@ -56,7 +56,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     makeBooking,
   } = useVenue(venueId);
 
- 
   const [checkIn, setCheckIn] = useState<string>("");
   const [checkOut, setCheckOut] = useState<string>("");
   const [guests, setGuests] = useState<number>(1);
@@ -65,7 +64,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
 
- 
   const [isOwner, setIsOwner] = useState<boolean>(false);
 
   const generateDateRange = useCallback((start: Date, end: Date): Date[] => {
@@ -107,11 +105,9 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
       const start = new Date(selectedDates[0]);
       const end = new Date(selectedDates[1]);
 
-    
       const rangeStart = start <= end ? start : end;
       const rangeEnd = start <= end ? end : start;
 
-      
       rangeStart.setHours(0, 0, 0, 0);
       rangeEnd.setHours(0, 0, 0, 0);
       date.setHours(0, 0, 0, 0);
@@ -121,11 +117,9 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     [selectedDates]
   );
 
- 
   const handleDateClick = (date: Date) => {
     const dateString = format(date, "yyyy-MM-dd");
 
-   
     const checkRangeForBookings = (start: string, end: string) => {
       const startDate = new Date(start);
       const endDate = new Date(end);
@@ -136,17 +130,13 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     };
 
     if (selectedDates.length === 0) {
-    
       setSelectedDates([dateString]);
       setCheckIn(dateString);
     } else if (selectedDates.length === 1) {
-     
       const firstDate = new Date(selectedDates[0]);
       const secondDate = date;
 
-    
       if (firstDate <= secondDate) {
-      
         if (checkRangeForBookings(selectedDates[0], dateString)) {
           alert(
             "Some dates in this range are already booked. Please select different dates."
@@ -156,7 +146,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
         setSelectedDates([selectedDates[0], dateString]);
         setCheckOut(dateString);
       } else {
-      
         if (checkRangeForBookings(dateString, selectedDates[0])) {
           alert(
             "Some dates in this range are already booked. Please select different dates."
@@ -208,17 +197,14 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
         throw new Error(result.error);
       }
 
-  
       setCheckIn("");
       setCheckOut("");
       setGuests(1);
       setIsCalendarOpen(false);
       setSelectedDates([]);
 
-      
       alert("Booking successful!");
 
- 
       router.push("/profile");
     } catch (error) {
       console.error("Error saving booking:", error);
@@ -231,7 +217,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     const monthEnd = endOfMonth(currentMonth);
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-    
     const startDay = monthStart.getDay();
     const endDay = monthEnd.getDay();
 
@@ -248,7 +233,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
       }
     }
 
-   
     const nextMonthDays = [];
     if (endDay < 6) {
       const nextMonth = new Date(currentMonth);
@@ -299,7 +283,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               </div>
             ))}
 
-         
             {allDays.map((day) => {
               const dateString = format(day, "yyyy-MM-dd");
               const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
@@ -337,13 +320,10 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
             })}
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-2 text-xs pt-2">
-         
-        </CardFooter>
+        <CardFooter className="flex flex-col space-y-2 text-xs pt-2"></CardFooter>
       </Card>
     );
   };
-
 
   const renderStars = (rating: number) => {
     return (
@@ -363,7 +343,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     );
   };
 
-
   useEffect(() => {
     if (!venue || !venue.owner) return;
 
@@ -373,7 +352,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
 
       const user = JSON.parse(storedUser);
 
-      
       if (venue.owner.email === user.email) {
         setIsOwner(true);
       } else {
@@ -385,7 +363,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     }
   }, [venue]);
 
- 
   useEffect(() => {
     if (venue) {
       document.title = `${venue.name} | Holidaze`;
@@ -394,7 +371,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     }
   }, [venue]);
 
-
   if (loading) {
     return (
       <div className="max-w-screen-lg mx-auto px-4 py-8 flex justify-center items-center h-64">
@@ -402,7 +378,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
       </div>
     );
   }
-
 
   if (error) {
     return (
@@ -423,7 +398,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
     );
   }
 
- 
   if (!venue) {
     return (
       <div className="max-w-screen-lg mx-auto px-4 py-8">
@@ -452,7 +426,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
   return (
     <>
       <div className="max-w-screen-lg mx-auto px-4 py-8">
-       
         <div className="flex justify-between items-center mb-6">
           <Button
             onClick={() => router.back()}
@@ -480,9 +453,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      
           <div className="lg:col-span-2 space-y-6">
-          
             <div className="relative aspect-[16/9] overflow-hidden rounded-lg">
               <Image
                 src={venueImage.url}
@@ -492,10 +463,9 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               />
             </div>
 
-           
             <div>
               <div className="flex items-start justify-between mb-2">
-                <h1 className="text-3xl font-bold text-custom-blue">
+                <h1 className="text-3xl font-bold text-custom-blue break-words">
                   {venue.name}
                 </h1>
                 <div className="flex items-center">
@@ -510,7 +480,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               </p>
             </div>
 
-           
             {isOwner && (
               <div>
                 <Button
@@ -524,17 +493,15 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               </div>
             )}
 
-           
             <Card>
               <CardHeader>
                 <CardTitle>About This Venue</CardTitle>
               </CardHeader>
               <CardContent>
-                <p>{venue.description}</p>
+                <p className="break-words">{venue.description}</p>
               </CardContent>
             </Card>
 
-          
             <Card>
               <CardHeader>
                 <CardTitle>Facilities</CardTitle>
@@ -585,7 +552,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
               </CardContent>
             </Card>
 
-            
             <Card>
               <CardHeader>
                 <CardTitle>Location</CardTitle>
@@ -597,7 +563,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
                       <dt className="text-sm font-medium text-muted-foreground">
                         Address
                       </dt>
-                      <dd>{venue.location.address}</dd>
+                      <dd className="break-words">{venue.location.address}</dd>
                     </div>
                   )}
                   {venue.location?.city && (
@@ -605,7 +571,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
                       <dt className="text-sm font-medium text-muted-foreground">
                         City
                       </dt>
-                      <dd>{venue.location.city}</dd>
+                      <dd className="break-words">{venue.location.city}</dd>
                     </div>
                   )}
                   {venue.location?.country && (
@@ -613,7 +579,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
                       <dt className="text-sm font-medium text-muted-foreground">
                         Country
                       </dt>
-                      <dd>{venue.location.country}</dd>
+                      <dd className="break-words">{venue.location.country}</dd>
                     </div>
                   )}
                   {venue.location?.zip && (
@@ -621,7 +587,7 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
                       <dt className="text-sm font-medium text-muted-foreground">
                         Zip Code
                       </dt>
-                      <dd>{venue.location.zip}</dd>
+                      <dd className="break-words">{venue.location.zip}</dd>
                     </div>
                   )}
                 </dl>
@@ -629,7 +595,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
             </Card>
           </div>
 
-        
           <div className="lg:self-start lg:sticky lg:top-24">
             <Card className="shadow-md">
               <CardHeader className="pb-4">
@@ -686,7 +651,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
                   )}
                 </div>
 
-              
                 <div className="space-y-2">
                   <Label htmlFor="guests">Guests</Label>
                   <select
@@ -720,7 +684,6 @@ export default function VenueDetails({ venueId }: VenueDetailsProps) {
                   </div>
                 )}
 
-                
                 <Button
                   onClick={handleReservation}
                   disabled={!canReserve()}
