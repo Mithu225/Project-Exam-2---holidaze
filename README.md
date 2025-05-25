@@ -139,6 +139,6 @@ npm start
 4. Push to the branch
 5. Create a Pull Request
 
-## License
+## Live page
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+ [https://holidaze.thuhuynh.no/](https://holidaze.thuhuynh.no/)
