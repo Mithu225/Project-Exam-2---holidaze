@@ -79,7 +79,6 @@ const reducer = (state: State, action: Action): State => {
         toastTimeouts.set(
           toastId,
           setTimeout(() => {
-            // @ts-expect-error - see comment below
             dispatch({
               type: actionTypes.REMOVE_TOAST,
               toastId,
@@ -91,7 +90,6 @@ const reducer = (state: State, action: Action): State => {
           toastTimeouts.set(
             toast.id,
             setTimeout(() => {
-              // @ts-expect-error - see comment below
               dispatch({
                 type: actionTypes.REMOVE_TOAST,
                 toastId: toast.id,

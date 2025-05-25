@@ -15,7 +15,6 @@ interface ManagerEditProfileFormProps {
 }
 
 export default function ManagerEditProfileForm({
-  userData,
   formData,
   setFormData,
   loading,

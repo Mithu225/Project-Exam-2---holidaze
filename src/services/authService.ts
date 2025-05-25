@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-
 const API_BASE_URL = "https://v2.api.noroff.dev";
 
 export const registerSchema = z.object({
@@ -29,7 +28,6 @@ export const registerSchema = z.object({
 
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 
-
 export const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z
@@ -39,9 +37,7 @@ export const loginSchema = z.object({
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
 
-
 export type UserRole = "Guest" | "venueManager";
-
 
 export async function registerUser(
   userData: RegisterFormValues & { venueManager?: boolean }
@@ -78,7 +74,6 @@ export async function registerUser(
     };
   }
 }
-
 
 export async function loginUser(
   credentials: LoginFormValues

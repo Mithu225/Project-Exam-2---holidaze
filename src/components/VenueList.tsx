@@ -14,7 +14,7 @@ const VenueList = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
+  const [, setIsSearching] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
   const ITEMS_PER_PAGE = 10;
   const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);

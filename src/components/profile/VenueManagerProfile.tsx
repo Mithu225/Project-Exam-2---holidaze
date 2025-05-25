@@ -86,7 +86,6 @@ export default function VenueManagerProfile() {
   const router = useRouter();
   const { toast } = useToast();
 
-
   const [venueDialogOpen, setVenueDialogOpen] = useState(false);
   const [isCreatingVenue] = useState(false);
 
@@ -124,7 +123,6 @@ export default function VenueManagerProfile() {
       setBookingsLoading(true);
       setBookingsError(null);
 
-    
       const token = localStorage.getItem("accessToken");
 
       if (!token || !userName) {
@@ -153,7 +151,6 @@ export default function VenueManagerProfile() {
             data.data.forEach((venue: Venue) => {
               if (venue.bookings && Array.isArray(venue.bookings)) {
                 venue.bookings.forEach((booking: VenueBooking) => {
-                 
                   allBookings.push({
                     ...booking,
                     venue: {
@@ -173,7 +170,6 @@ export default function VenueManagerProfile() {
               }
             });
 
-           
             const sortedBookings = allBookings.sort(
               (a, b) =>
                 new Date(a.dateFrom).getTime() - new Date(b.dateFrom).getTime()
@@ -200,7 +196,6 @@ export default function VenueManagerProfile() {
             ? profileError.message
             : "Failed to load bookings"
         );
-      
       }
     } catch (error) {
       console.error("Error in venue fetching process:", error);
@@ -258,7 +253,6 @@ export default function VenueManagerProfile() {
   };
 
   const handleDeleteVenue = async (venueId: string) => {
-   
     if (!confirm("Are you sure you want to delete this venue?")) {
       return;
     }
@@ -391,8 +385,8 @@ export default function VenueManagerProfile() {
               </DialogHeader>
               <CreateVenueForm
                 isCreatingVenue={isCreatingVenue}
-                onVenueCreated={(venue) => {
-                  setVenues((prevVenues) => [venue, ...prevVenues]);
+                onVenueCreated={(venue: Venue) => {
+                  setVenues((prevVenues: Venue[]) => [venue, ...prevVenues]);
                   setVenueDialogOpen(false);
                 }}
                 onClose={() => setVenueDialogOpen(false)}
@@ -578,7 +572,6 @@ export default function VenueManagerProfile() {
         ) : (
           <div className="space-y-4">
             {bookings.map((booking) => {
-             
               const now = new Date();
               const bookingStart = new Date(booking.dateFrom);
               const bookingEnd = new Date(booking.dateTo);

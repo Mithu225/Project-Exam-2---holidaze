@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, X } from "lucide-react";
 import { createVenue } from "@/utils/api";
 import { useToast } from "@/components/ui/use-toast";
+import { Venue } from "@/types/booking";
 
 // Schema for venue creation form
 const venueFormSchema = z.object({
@@ -55,7 +56,6 @@ const venueFormSchema = z.object({
   }),
 });
 
-
 export type VenueFormValues = z.infer<typeof venueFormSchema>;
 
 const defaultVenueValues: VenueFormValues = {
@@ -84,7 +84,7 @@ const defaultVenueValues: VenueFormValues = {
 
 interface CreateVenueFormProps {
   isCreatingVenue: boolean;
-  onVenueCreated: (venue: unknown) => void;
+  onVenueCreated: (venue: Venue) => void;
   onClose: () => void;
 }
 

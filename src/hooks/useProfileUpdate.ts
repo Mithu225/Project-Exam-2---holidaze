@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { useRouter } from "next/router";
 import { fetchWithAuth } from "@/utils/api";
 import * as z from "zod";
 
@@ -36,7 +35,6 @@ export function useProfileUpdate() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const router = useRouter();
 
   const updateProfile = async (
     username: string,
